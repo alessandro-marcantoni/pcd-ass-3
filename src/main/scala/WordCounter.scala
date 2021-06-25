@@ -1,10 +1,11 @@
 import Actors.Main
 import Messages._
+import Utils.GraphicItems._
 import akka.actor.typed.ActorSystem
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.scene.Scene
-import scalafx.scene.control.Button
+import scalafx.scene.control.{Button, TextField}
 
 import java.io.File
 
@@ -20,9 +21,13 @@ object GUI extends JFXApp {
   stage = new PrimaryStage {
     title = "Word Counter"
     scene = new Scene(800, 600) {
-      val btnStart = new Button("Start")
-      val btnStop = new Button("Stop")
-      content = List(btnStart, btnStop)
+      val tfdPdfs: TextField = setPdfsTextField()
+      val btnDirectoryChooser: Button = setBtnDirectoryChooser(stage, tfdPdfs)
+      val tfdIgnored: TextField = setIgnoredTextField()
+      val btnFileChooser: Button = setBtnFileChooser(stage, tfdIgnored)
+      val btnStart: Button = setStartButton()
+      val btnStop: Button = setStopButton()
+      content = List(btnStart, btnStop, btnDirectoryChooser, tfdPdfs, btnFileChooser, tfdIgnored)
     }
   }
 }
