@@ -1,4 +1,7 @@
-import Messages.Parameters
+import GUI.stage
+import Messages.{Message, Parameters}
+import akka.actor.typed.ActorSystem
+import scalafx.scene.Node
 import scalafx.scene.control.{Button, TextField}
 import scalafx.stage.{DirectoryChooser, FileChooser, Stage}
 
@@ -13,6 +16,18 @@ object Utils {
   object GraphicItems {
     val width: Double = 800
     val height: Double = 600
+
+    def getGuiElements(system: ActorSystem[Message]): List[Node] = {
+      val tfdPdfs: TextField = setPdfsTextField()
+      val btnDirectoryChooser: Button = setBtnDirectoryChooser(stage, tfdPdfs)
+      val tfdIgnored: TextField = setIgnoredTextField()
+      val btnFileChooser: Button = setBtnFileChooser(stage, tfdIgnored)
+      val btnStart: Button = setStartButton()
+      btnStart.onAction = _ => system ! Parameters(new File(tfdPdfs.text.value), tfdIgnored.text.value, 10)
+      val btnStop: Button = setStopButton()
+      btnStop.onAction = _ => system.terminate()
+      List(btnStart, btnStop, btnDirectoryChooser, tfdPdfs, btnFileChooser, tfdIgnored)
+    }
 
     def setStartButton(): Button = {
       val btnStart = new Button("Start")

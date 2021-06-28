@@ -51,13 +51,13 @@ object Actors {
   object Counter {
     def apply(ignoredWordsPath: String, nWords: Int): Behavior[Message] = Behaviors.setup(_ => {
       val ignoredWords: List[String] = Files.readAllLines(Path.of(ignoredWordsPath), Charset.defaultCharset()).asScala.toList
-      var occurrences: Map[String,Integer] = Map()
+      var occurrences: Map[String,Int] = Map()
       Behaviors.receive { (ctx, msg) => msg match {
         case WordList(l) =>
           val (alreadyThere, notYet) = l.filter(!ignoredWords.contains(_)).partition(occurrences contains _)
           alreadyThere foreach (w => occurrences = occurrences + (w -> (occurrences(w) + 1)))
           notYet foreach (w => occurrences = occurrences + (w -> 1))
-          ctx.log.info(occurrences.toString())
+          ctx.log.info(occurrences.toList.sortWith((a, b) => a._2 > b._2).take(nWords).toString())
           Behaviors.same
       } }
     })
