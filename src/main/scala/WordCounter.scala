@@ -14,6 +14,7 @@ object Messages {
   case class Directory(directory: File) extends Message
   case class Document(file: File) extends Message
   case class WordList(words: List[String]) extends Message
+  case class Occurrences(occurrences: List[(String,Int)]) extends Message
 }
 
 object GUI extends JFXApp {
@@ -24,10 +25,4 @@ object GUI extends JFXApp {
       content = getGuiElements(system)
     }
   }
-}
-
-object WordCounter extends App {
-  val parameters: Parameters = Parameters(new File("./res/pdfs"), "./res/ignored.txt", 10)
-  val system = ActorSystem[Message](Main(), "system")
-  system ! parameters
 }
