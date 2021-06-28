@@ -2,7 +2,7 @@ import GUI.stage
 import Messages.{Message, Parameters}
 import akka.actor.typed.ActorSystem
 import scalafx.scene.Node
-import scalafx.scene.control.{Button, TextField}
+import scalafx.scene.control.{Button, TableView, TextField}
 import scalafx.stage.{DirectoryChooser, FileChooser, Stage}
 
 import java.io.File
@@ -23,10 +23,18 @@ object Utils {
       val tfdIgnored: TextField = setIgnoredTextField()
       val btnFileChooser: Button = setBtnFileChooser(stage, tfdIgnored)
       val btnStart: Button = setStartButton()
+      val tableView: TableView[(String,Int)] = setTableView()
       btnStart.onAction = _ => system ! Parameters(new File(tfdPdfs.text.value), tfdIgnored.text.value, 10)
       val btnStop: Button = setStopButton()
       btnStop.onAction = _ => system.terminate()
-      List(btnStart, btnStop, btnDirectoryChooser, tfdPdfs, btnFileChooser, tfdIgnored)
+      List(tableView, btnStart, btnStop, btnDirectoryChooser, tfdPdfs, btnFileChooser, tfdIgnored)
+    }
+
+    def setTableView(): TableView[(String,Int)] = {
+      val tableView = new TableView[(String,Int)]()
+      tableView.layoutX = width * 0.5
+      tableView.layoutY = height * 0.05
+      tableView
     }
 
     def setStartButton(): Button = {
