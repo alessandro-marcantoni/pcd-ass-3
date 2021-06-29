@@ -2,7 +2,7 @@ import GUI.stage
 import Messages.{Message, Parameters}
 import akka.actor.typed.ActorSystem
 import scalafx.scene.Node
-import scalafx.scene.control.{Button, TableView, TextField}
+import scalafx.scene.control.{Button, TableView, TextArea, TextField}
 import scalafx.stage.{DirectoryChooser, FileChooser, Stage}
 
 import java.io.File
@@ -23,31 +23,36 @@ object Utils {
       val tfdIgnored: TextField = setIgnoredTextField()
       val btnFileChooser: Button = setBtnFileChooser(stage, tfdIgnored)
       val btnStart: Button = setStartButton()
-      val tableView: TableView[(String,Int)] = setTableView()
+      val output: TextArea = setTableView()
       btnStart.onAction = _ => system ! Parameters(new File(tfdPdfs.text.value), tfdIgnored.text.value, 10)
       val btnStop: Button = setStopButton()
       btnStop.onAction = _ => system.terminate()
-      List(tableView, btnStart, btnStop, btnDirectoryChooser, tfdPdfs, btnFileChooser, tfdIgnored)
+      List(output, btnStart, btnStop, btnDirectoryChooser, tfdPdfs, btnFileChooser, tfdIgnored)
     }
 
-    def setTableView(): TableView[(String,Int)] = {
-      val tableView = new TableView[(String,Int)]()
-      tableView.layoutX = width * 0.5
-      tableView.layoutY = height * 0.05
-      tableView
+    def setTableView(): TextArea = {
+      //val tableView = new TableView[(String,Int)]()
+      val outputView = new TextArea()
+      outputView.layoutX = width * 0.5
+      outputView.layoutY = height * 0.05
+      outputView.setMaxWidth(width * 0.4)
+      outputView.setMinHeight(height * 0.9)
+      outputView
     }
 
     def setStartButton(): Button = {
       val btnStart = new Button("Start")
-      btnStart.layoutX = width * 0.8
+      btnStart.layoutX = width * 0.05
       btnStart.layoutY = height * 0.9
+      btnStart.setMinWidth(width * 0.15)
       btnStart
     }
 
     def setStopButton(): Button = {
       val btnStop = new Button("Stop")
-      btnStop.layoutX = width * 0.9
+      btnStop.layoutX = width * 0.3
       btnStop.layoutY = height * 0.9
+      btnStop.setMinWidth(width * 0.15)
       btnStop
     }
 
@@ -62,6 +67,7 @@ object Utils {
       val btnDirectoryChooser = new Button("Choose pdf directory")
       btnDirectoryChooser.layoutX = width * 0.25
       btnDirectoryChooser.layoutY = height * 0.05
+      btnDirectoryChooser.setMinWidth(width * 0.2)
       btnDirectoryChooser.onAction = _ => {
         val directoryChooser = new DirectoryChooser()
         directoryChooser.initialDirectory = new File(System.getProperty("user.dir"))
@@ -81,6 +87,7 @@ object Utils {
       val btnFileChooser = new Button("Choose ignored file")
       btnFileChooser.layoutX = width * 0.25
       btnFileChooser.layoutY = height * 0.15
+      btnFileChooser.setMinWidth(width * 0.2)
       btnFileChooser.onAction = _ => {
         val fileChooser = new FileChooser()
         fileChooser.initialDirectory = new File(System.getProperty("user.dir"))

@@ -1,3 +1,4 @@
+import GUI.Renderer
 import Messages._
 import Utils._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
@@ -63,7 +64,7 @@ object Actors {
     })
   }
 
-  object Renderer {
+  /*object Renderer {
     def apply(): Behavior[Message] = Behaviors.receive { (ctx, msg) =>
       msg match {
         case Occurrences(occurrences) =>
@@ -71,7 +72,7 @@ object Actors {
           Behaviors.same
       }
     }
-  }
+  }*/
 
   object Main {
     def apply(): Behavior[Message] = Behaviors.setup { ctx =>
