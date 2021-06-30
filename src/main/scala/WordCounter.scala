@@ -22,21 +22,23 @@ object Messages {
 
 object GUI extends JFXApp {
   val system: ActorSystem[Message] = ActorSystem[Message](Main(), "system")
+  val elements = getGuiElements(system)
   stage = new PrimaryStage {
     title = "Word Counter"
     scene = new Scene(Utils.GraphicItems.width, Utils.GraphicItems.height) {
-      content = getGuiElements(system)
+      content = elements
     }
   }
 
-  val output: TextArea = getGuiElements(system).get(0).asInstanceOf[TextArea]
+  val output: TextArea = elements.get(0).asInstanceOf[TextArea]
 
   object Renderer {
     def apply(): Behavior[Message] = Behaviors.receive { (ctx, msg) =>
       msg match {
         case Occurrences(occurrences) =>
-          ctx.log.info(occurrences.toString())
-          output.setText(occurrences.toString())
+          var text: String = ""
+          occurrences foreach(e => text += (e._1 + "\t->\t" + e._2 + "\n"))
+          output.setText(text)
           Behaviors.same
       }
     }

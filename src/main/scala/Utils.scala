@@ -23,15 +23,31 @@ object Utils {
       val tfdIgnored: TextField = setIgnoredTextField()
       val btnFileChooser: Button = setBtnFileChooser(stage, tfdIgnored)
       val btnStart: Button = setStartButton()
-      val output: TextArea = setTableView()
-      btnStart.onAction = _ => system ! Parameters(new File(tfdPdfs.text.value), tfdIgnored.text.value, 10)
+      val outputArea: TextArea = setOutputView()
+      val tfdNumber: TextField = setNumberTextField()
+      val btnNumber: Button = setNumberButton()
+      btnStart.onAction = _ => system ! Parameters(new File(tfdPdfs.text.value), tfdIgnored.text.value, tfdNumber.text.value.toIntOption.getOrElse(0))
       val btnStop: Button = setStopButton()
       btnStop.onAction = _ => system.terminate()
-      List(output, btnStart, btnStop, btnDirectoryChooser, tfdPdfs, btnFileChooser, tfdIgnored)
+      List(outputArea, btnStart, btnStop, btnDirectoryChooser, tfdPdfs, btnFileChooser, tfdIgnored, tfdNumber, btnNumber)
     }
 
-    def setTableView(): TextArea = {
-      //val tableView = new TableView[(String,Int)]()
+    def setNumberTextField(): TextField = {
+      val tfdNum = new TextField()
+      tfdNum.layoutX = width * 0.05
+      tfdNum.layoutY = height * 0.25
+      tfdNum
+    }
+
+    def setNumberButton(): Button = {
+      val btnNum = new Button("Choose number of words")
+      btnNum.layoutX = width * 0.25
+      btnNum.layoutY = height * 0.25
+      btnNum.setMinWidth(width * 0.2)
+      btnNum
+    }
+
+    def setOutputView(): TextArea = {
       val outputView = new TextArea()
       outputView.layoutX = width * 0.5
       outputView.layoutY = height * 0.05
