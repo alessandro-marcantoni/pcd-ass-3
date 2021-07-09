@@ -3,13 +3,12 @@ import Messages._
 import Utils.GraphicItems._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorSystem, Behavior}
-import scalafx.application.{JFXApp, Platform}
+import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.scene.control.TextArea
-import scalafx.scene.Scene
+import scalafx.scene.{Node, Scene}
 
 import java.io.File
-import scala.collection.convert.ImplicitConversions.`seq AsJavaList`
 
 object Messages {
   sealed trait Message
@@ -22,7 +21,7 @@ object Messages {
 
 object GUI extends JFXApp {
   val system: ActorSystem[Message] = ActorSystem[Message](Main(), "system")
-  val elements = getGuiElements(system)
+  val elements: Seq[Node] = getGuiElements(system)
   stage = new PrimaryStage {
     title = "Word Counter"
     scene = new Scene(Utils.GraphicItems.width, Utils.GraphicItems.height) {
@@ -30,10 +29,10 @@ object GUI extends JFXApp {
     }
   }
 
-  val output: TextArea = elements.get(0).asInstanceOf[TextArea]
+  val output: TextArea = elements.head.asInstanceOf[TextArea]
 
   object Renderer {
-    def apply(): Behavior[Message] = Behaviors.receive { (ctx, msg) =>
+    def apply(): Behavior[Message] = Behaviors.receive { (_, msg) =>
       msg match {
         case Occurrences(occurrences) =>
           var text: String = ""

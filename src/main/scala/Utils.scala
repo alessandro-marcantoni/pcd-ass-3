@@ -2,7 +2,7 @@ import GUI.stage
 import Messages.{Message, Parameters}
 import akka.actor.typed.ActorSystem
 import scalafx.scene.Node
-import scalafx.scene.control.{Button, TableView, TextArea, TextField}
+import scalafx.scene.control.{Button, TextArea, TextField}
 import scalafx.stage.{DirectoryChooser, FileChooser, Stage}
 
 import java.io.File
