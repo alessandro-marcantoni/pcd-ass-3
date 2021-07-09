@@ -7,11 +7,11 @@ import javax.imageio.ImageIO
 import javax.swing.{BorderFactory, JFrame, JOptionPane, JPanel, WindowConstants}
 import scala.util.Random
 
-class PuzzleBoard(val rows: Int,
-                  val columns: Int,
-                  val imagePath: String,
-                  var tiles: List[Tile] = List(),
-                  val selectionManager: SelectionManager = new SelectionManager()) extends JFrame {
+case class PuzzleBoard(rows: Int,
+                       columns: Int,
+                       imagePath: String,
+                       var tiles: List[Tile] = List(),
+                       selectionManager: SelectionManager = new SelectionManager()) extends JFrame {
   setup()
 
   private def setup(): Unit = {
@@ -38,7 +38,7 @@ class PuzzleBoard(val rows: Int,
     randomPositions = Random.shuffle(randomPositions)
 
     (0 until rows) foreach { i =>
-      (0 until columns) foreach {j =>
+      (0 until columns) foreach { j =>
         val imagePortion: Image = createImage(
           new FilteredImageSource(image.getSource,
             new CropImageFilter(j * imageWidth / columns, i * imageHeight / rows, imageWidth / columns, imageHeight / rows)))
@@ -69,10 +69,4 @@ class PuzzleBoard(val rows: Int,
       JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
   }
 
-}
-
-object PuzzleBoard {
-  def apply(rows: Int, columns: Int, imagePath: String): PuzzleBoard = {
-    new PuzzleBoard(rows, columns, imagePath)
-  }
 }
