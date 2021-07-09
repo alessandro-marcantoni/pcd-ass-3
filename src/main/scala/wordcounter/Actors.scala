@@ -1,10 +1,12 @@
-import GUI.Renderer
-import Messages._
-import Utils._
+package wordcounter
+
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.text.PDFTextStripper
+import wordcounter.GUI.Renderer
+import wordcounter.Messages._
+import wordcounter.Utils.CorrectParameters
 
 import java.io.File
 import java.nio.charset.Charset

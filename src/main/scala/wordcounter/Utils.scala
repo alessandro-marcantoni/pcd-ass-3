@@ -1,9 +1,11 @@
-import GUI.stage
-import Messages.{Message, Parameters}
+package wordcounter
+
 import akka.actor.typed.ActorSystem
 import scalafx.scene.Node
 import scalafx.scene.control.{Button, TextArea, TextField}
 import scalafx.stage.{DirectoryChooser, FileChooser, Stage}
+import wordcounter.GUI.stage
+import wordcounter.Messages.{Message, Parameters}
 
 import java.io.File
 

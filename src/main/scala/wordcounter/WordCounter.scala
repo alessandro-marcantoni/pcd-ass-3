@@ -1,12 +1,14 @@
-import Actors.Main
-import Messages._
-import Utils.GraphicItems._
+package wordcounter
+
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorSystem, Behavior}
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.scene.control.TextArea
 import scalafx.scene.{Node, Scene}
+import wordcounter.Actors.Main
+import wordcounter.Messages.{Message, Occurrences}
+import wordcounter.Utils.GraphicItems.getGuiElements
 
 import java.io.File
 
