@@ -1,7 +1,9 @@
 package puzzle
 
-class SelectionManager(var selectionActive: Boolean = false,
-                       var selectedTile: Tile = null) {
+class SelectionManager(
+    var selectionActive: Boolean = false,
+    var selectedTile: Tile = null
+) {
 
   def selectTile(tile: Tile, listener: Listener): Unit = {
     if (selectionActive) {

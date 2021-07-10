@@ -7,11 +7,13 @@ import javax.imageio.ImageIO
 import javax.swing.{BorderFactory, JFrame, JOptionPane, JPanel, WindowConstants}
 import scala.util.Random
 
-case class PuzzleBoard(rows: Int,
-                       columns: Int,
-                       imagePath: String,
-                       var tiles: List[Tile] = List(),
-                       selectionManager: SelectionManager = new SelectionManager()) extends JFrame {
+case class PuzzleBoard(
+    rows: Int,
+    columns: Int,
+    imagePath: String,
+    var tiles: List[Tile] = List(),
+    selectionManager: SelectionManager = new SelectionManager()
+) extends JFrame {
   setup()
 
   private def setup(): Unit = {
@@ -40,9 +42,19 @@ case class PuzzleBoard(rows: Int,
     (0 until rows) foreach { i =>
       (0 until columns) foreach { j =>
         val imagePortion: Image = createImage(
-          new FilteredImageSource(image.getSource,
-            new CropImageFilter(j * imageWidth / columns, i * imageHeight / rows, imageWidth / columns, imageHeight / rows)))
-        tiles = tiles.appended(Tile(imagePortion, position, randomPositions(position)))
+          new FilteredImageSource(
+            image.getSource,
+            new CropImageFilter(
+              j * imageWidth / columns,
+              i * imageHeight / rows,
+              imageWidth / columns,
+              imageHeight / rows
+            )
+          )
+        )
+        tiles = tiles.appended(
+          Tile(imagePortion, position, randomPositions(position))
+        )
         position = position + 1
       }
     }
@@ -51,22 +63,34 @@ case class PuzzleBoard(rows: Int,
   private def paintPuzzle(board: JPanel): Unit = {
     board.removeAll()
     tiles = tiles.sorted
-    tiles foreach { tile => {
-      val btn: TileButton = TileButton(tile)
-      board.add(btn)
-      btn.setBorder(BorderFactory.createLineBorder(Color.gray))
-      btn.addActionListener(_ => selectionManager.selectTile(tile, () => {
-        paintPuzzle(board)
-        checkSolution()
-      }))
-    } }
+    tiles foreach { tile =>
+      {
+        val btn: TileButton = TileButton(tile)
+        board.add(btn)
+        btn.setBorder(BorderFactory.createLineBorder(Color.gray))
+        btn.addActionListener(_ =>
+          selectionManager.selectTile(
+            tile,
+            () => {
+              paintPuzzle(board)
+              checkSolution()
+            }
+          )
+        )
+      }
+    }
     pack()
     setLocationRelativeTo(null)
   }
 
   private def checkSolution(): Unit = {
     if (tiles.forall(tile => tile.isInRightPlace))
-      JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
+      JOptionPane.showMessageDialog(
+        this,
+        "Puzzle Completed!",
+        "",
+        JOptionPane.INFORMATION_MESSAGE
+      )
   }
 
 }
