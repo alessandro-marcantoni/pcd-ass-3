@@ -1,11 +1,9 @@
-package puzzle
+package puzzle.actors
 
-class SelectionManager(
-    var selectionActive: Boolean = false,
-    var selectedTile: Tile = null
-) {
+class SelectionManager(var selectionActive: Boolean = false,
+                       var selectedTile: Tile = null) {
 
-  def selectTile(tile: Tile, listener: Listener): Unit = {
+  def selectTile(tile: Tile, listener: Listener): Unit =
     if (selectionActive) {
       selectionActive = false
       swap(selectedTile, tile)
@@ -14,7 +12,6 @@ class SelectionManager(
       selectionActive = true
       selectedTile = tile
     }
-  }
 
   private def swap(t1: Tile, t2: Tile): Unit = {
     val pos: Int = t1.currentPosition

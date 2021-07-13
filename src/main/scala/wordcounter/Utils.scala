@@ -31,24 +31,10 @@ object Utils {
       val tfdNumber: TextField = setNumberTextField()
       val btnNumber: Button = setNumberButton()
       btnStart.onAction = _ =>
-        system ! Parameters(
-          new File(tfdPdfs.text.value),
-          tfdIgnored.text.value,
-          tfdNumber.text.value.toIntOption.getOrElse(0)
-        )
+        system ! Parameters(new File(tfdPdfs.text.value), tfdIgnored.text.value, tfdNumber.text.value.toIntOption.getOrElse(0))
       val btnStop: Button = setStopButton()
       btnStop.onAction = _ => system.terminate()
-      List(
-        outputArea,
-        btnStart,
-        btnStop,
-        btnDirectoryChooser,
-        tfdPdfs,
-        btnFileChooser,
-        tfdIgnored,
-        tfdNumber,
-        btnNumber
-      )
+      List(outputArea, btnStart, btnStop, btnDirectoryChooser, tfdPdfs, btnFileChooser, tfdIgnored, tfdNumber, btnNumber)
     }
 
     def setNumberTextField(): TextField = {
@@ -105,9 +91,7 @@ object Utils {
       btnDirectoryChooser.setMinWidth(width * 0.2)
       btnDirectoryChooser.onAction = _ => {
         val directoryChooser = new DirectoryChooser()
-        directoryChooser.initialDirectory = new File(
-          System.getProperty("user.dir")
-        )
+        directoryChooser.initialDirectory = new File(System.getProperty("user.dir"))
         tfd.text = directoryChooser.showDialog(stage).getAbsolutePath
       }
       btnDirectoryChooser

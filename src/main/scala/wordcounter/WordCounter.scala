@@ -14,8 +14,8 @@ import java.io.File
 
 object Messages {
   sealed trait Message
-  case class Parameters(directory: File, ignoredWordsPath: String, nWords: Int)
-      extends Message
+
+  case class Parameters(directory: File, ignoredWordsPath: String, nWords: Int) extends Message
   case class Directory(directory: File) extends Message
   case class Document(file: File) extends Message
   case class WordList(words: List[String]) extends Message
@@ -35,16 +35,15 @@ object GUI extends JFXApp {
   val output: TextArea = elements.head.asInstanceOf[TextArea]
 
   object Renderer {
-    def apply(): Behavior[Message] =
-      Behaviors.receive { (_, msg) =>
-        msg match {
-          case Occurrences(occurrences) =>
-            var text: String = ""
-            occurrences foreach (e => text += (e._1 + "\t->\t" + e._2 + "\n"))
-            output.setText(text)
-            Behaviors.same
-        }
+    def apply(): Behavior[Message] = Behaviors.receive { (_, msg) =>
+      msg match {
+        case Occurrences(occurrences) =>
+          var text: String = ""
+          occurrences foreach (e => text += (e._1 + "\t->\t" + e._2 + "\n"))
+          output.setText(text)
+          Behaviors.same
       }
+    }
   }
 
 }
