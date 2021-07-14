@@ -9,7 +9,7 @@ import puzzle.actors.Events._
 object Events {
   sealed trait Event
   case class JoinersUpdated(newJoiners: Set[ActorRef[Event]]) extends Event with CborSerializable
-  case class Joined() extends Event with CborSerializable
+  case class Joined(tiles: List[SerializableTile]) extends Event with CborSerializable
 }
 
 import Actors._
@@ -47,7 +47,7 @@ object Actors {
     def apply(): Behavior[Event] = Behaviors.setup { ctx =>
       ctx.system.receptionist ! Receptionist.Register(JoinerServiceKey, ctx.self)
       Behaviors.receiveMessage {
-        case Joined() =>
+        case Joined(_) =>
           ctx.log.info(s"JOINED ${ctx.self}")
           ctx.system.receptionist ! Receptionist.Deregister(JoinerServiceKey, ctx.self)
           Acceptor()
@@ -73,7 +73,7 @@ object Actors {
     def running(ctx: ActorContext[Event]): Behavior[Event] = Behaviors.receiveMessage {
       case JoinersUpdated(joiners) =>
         ctx.log.info(s"JOINERS: ${joiners.toString()}")
-        joiners foreach (_ ! Joined())
+        joiners foreach (_ ! Joined(List()))
         running(ctx)
       case _ => Behaviors.same
     }
