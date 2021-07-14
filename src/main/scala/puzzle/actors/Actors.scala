@@ -8,7 +8,8 @@ import puzzle.actors.Events._
 
 object Events {
   sealed trait Event
-  case class JoinersUpdated(newJoiners: Set[ActorRef[Event]]) extends Event with CborSerializable
+  case class JoinersUpdated(joiners: Set[ActorRef[Event]]) extends Event with CborSerializable
+  case class PlayersUpdated(players: Set[ActorRef[Event]]) extends Event with CborSerializable
   case class Joined(tiles: List[SerializableTile]) extends Event with CborSerializable
 }
 
@@ -30,8 +31,13 @@ object Actors {
      */
     def apply(): Behavior[Nothing] = Behaviors.setup[Nothing] { ctx =>
       val cluster = Cluster(ctx.system)
-      if (cluster.selfMember.hasRole("leader")) ctx.spawn(Acceptor(), "acceptor")
-      if (cluster.selfMember.hasRole("player")) ctx.spawn(Joiner(), "joiner")
+      if (cluster.selfMember.hasRole("leader")) {
+        ctx.spawn(Acceptor(), "acceptor")
+        ctx.spawn(Player(), "player")
+      }
+      if (cluster.selfMember.hasRole("player")) {
+        ctx.spawn(Joiner(), "joiner")
+      }
       Behaviors.empty
     }
   }
@@ -50,6 +56,7 @@ object Actors {
         case Joined(_) =>
           ctx.log.info(s"JOINED ${ctx.self}")
           ctx.system.receptionist ! Receptionist.Deregister(JoinerServiceKey, ctx.self)
+          ctx.spawn(Player(), "player")
           Acceptor()
         case _ => Behaviors.same
       }
@@ -76,6 +83,27 @@ object Actors {
         joiners foreach (_ ! Joined(List()))
         running(ctx)
       case _ => Behaviors.same
+    }
+  }
+
+  object Player {
+    val PlayerServiceKey: ServiceKey[Event] = ServiceKey[Event]("Player")
+
+    /**
+     * The [[Player]] is always aware of the other [[Player]]s thanks to the [[Receptionist]].
+     * It starts the game for the current player:
+     * - if this is the first player, it should create the game from scratch;
+     * - if not, it should create the game retrieving the current state (not implemented yet).
+     */
+    def apply(): Behavior[Event] = Behaviors.setup { ctx =>
+      ctx.system.receptionist ! Receptionist.Register(PlayerServiceKey, ctx.self)
+      val subscriptionAdapter = ctx.messageAdapter[Receptionist.Listing] {
+        case Player.PlayerServiceKey.Listing(players) => PlayersUpdated(players)
+      }
+      ctx.system.receptionist ! Receptionist.Subscribe(Player.PlayerServiceKey, subscriptionAdapter)
+      val puzzle = PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath)
+      puzzle.setVisible(true)
+      Behaviors.empty
     }
   }
 

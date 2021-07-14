@@ -10,12 +10,10 @@ object DistributedPuzzle {
   val imagePath: String = "res/bletchley-park-mansion.jpg"
 
   def main(args: Array[String]): Unit = {
-    val puzzle: PuzzleBoard = PuzzleBoard(n, m, imagePath)
     startup(
       if (args.isEmpty) (0, "player")
       else (args.toSeq.map(_.toInt).head, "leader")
     )
-    puzzle.setVisible(true)
   }
 
   def startup(parameters: (Int, String)): Unit = {
