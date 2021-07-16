@@ -11,7 +11,8 @@ case class PuzzleBoard(rows: Int,
                        columns: Int,
                        imagePath: String,
                        var tiles: List[Tile] = List(),
-                       selectionManager: SelectionManager = new SelectionManager()) extends JFrame {
+                       selectionManager: SelectionManager = new SelectionManager(),
+                       private var panel: JPanel = null) extends JFrame {
   setup()
 
   private def setup(): Unit = {
@@ -23,40 +24,44 @@ case class PuzzleBoard(rows: Int,
     board.setBorder(BorderFactory.createLineBorder(Color.gray))
     board.setLayout(new GridLayout(rows, columns, 0, 0))
     getContentPane.add(board, BorderLayout.CENTER)
-
-    createTiles(imagePath)
-    paintPuzzle(board)
+    panel = board
   }
 
-  private def createTiles(imagePath: String): Unit = {
+  def createTiles(t: Option[List[SerializableTile]]): Unit = {
     val image: BufferedImage = ImageIO.read(new File(imagePath))
     val imageWidth: Int = image.getWidth(null)
     val imageHeight: Int = image.getHeight(null)
     var position: Int = 0
 
-    var randomPositions = LazyList.iterate(0)(_ + 1).take(rows * columns).toList
-    randomPositions = Random.shuffle(randomPositions)
-
+    val (currentPositions: List[Int], originalPositions: List[Int]) = t match {
+      case Some(tls) =>
+        (tls.map(tl => tl.currentPosition), tls.map(tl => tl.originalPosition))
+      case None =>
+        val positions = LazyList.iterate(0)(_ + 1).take(rows * columns).toList
+        (Random.shuffle(positions), positions)
+    }
+    println(currentPositions.toString(), originalPositions.toString())
+    tiles = List()
     (0 until rows) foreach { i =>
       (0 until columns) foreach { j =>
         val imagePortion: Image = createImage(new FilteredImageSource(image.getSource,
           new CropImageFilter(j * imageWidth / columns, i * imageHeight / rows, imageWidth / columns, imageHeight / rows)))
-        tiles = tiles.appended(Tile(imagePortion, position, randomPositions(position)))
+        tiles = tiles.appended(Tile(imagePortion, originalPositions(position), currentPositions(position)))
         position = position + 1
       }
     }
   }
 
-  private def paintPuzzle(board: JPanel): Unit = {
-    board.removeAll()
+  def paintPuzzle(): Unit = {
+    panel.removeAll()
     tiles = tiles.sorted
     tiles foreach { tile => {
       val btn: TileButton = TileButton(tile)
-      board.add(btn)
+      panel.add(btn)
       btn.setBorder(BorderFactory.createLineBorder(Color.gray))
       btn.addActionListener(_ =>
         selectionManager.selectTile(tile, () => {
-          paintPuzzle(board)
+          paintPuzzle()
           checkSolution()
         }))
     }
@@ -68,4 +73,9 @@ case class PuzzleBoard(rows: Int,
   private def checkSolution(): Unit = if (tiles.forall(tile => tile.isInRightPlace))
     JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
 
+}
+
+object PuzzleBoard {
+  def apply(): PuzzleBoard = new PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath)
+  def apply(tiles: List[Tile]): PuzzleBoard = new PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, tiles)
 }

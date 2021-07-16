@@ -10,7 +10,8 @@ object Events {
   sealed trait Event
   case class JoinersUpdated(joiners: Set[ActorRef[Event]]) extends Event with CborSerializable
   case class PlayersUpdated(players: Set[ActorRef[Event]]) extends Event with CborSerializable
-  case class Joined(tiles: List[SerializableTile]) extends Event with CborSerializable
+  case class Joined() extends Event with CborSerializable
+  case class GameState(tiles: List[SerializableTile], actorRef: ActorRef[Event]) extends Event with CborSerializable
 }
 
 import Actors._
@@ -21,6 +22,9 @@ import Actors._
  *    and the other players are joiners (sbt "runMain puzzle.actors.DistributedPuzzle").
  * - when the first player is spawned, it is an [[Acceptor]] waiting for [[Joiner]]s.
  * - when a [[Joiner]] is joined, it becomes an [[Acceptor]] himself waiting for [[Joiner]]s.
+ * - the second phase involves starting the game by the [[Player]]:
+ *   - the first player creates the game;
+ *   - the others retrieve the game state.
  */
 object Actors {
 
@@ -33,7 +37,7 @@ object Actors {
       val cluster = Cluster(ctx.system)
       if (cluster.selfMember.hasRole("leader")) {
         ctx.spawn(Acceptor(), "acceptor")
-        ctx.spawn(Player(), "player")
+        ctx.spawn(GameCreator(), "player")
       }
       if (cluster.selfMember.hasRole("player")) {
         ctx.spawn(Joiner(), "joiner")
@@ -53,10 +57,10 @@ object Actors {
     def apply(): Behavior[Event] = Behaviors.setup { ctx =>
       ctx.system.receptionist ! Receptionist.Register(JoinerServiceKey, ctx.self)
       Behaviors.receiveMessage {
-        case Joined(_) =>
+        case Joined() =>
           ctx.log.info(s"JOINED ${ctx.self}")
           ctx.system.receptionist ! Receptionist.Deregister(JoinerServiceKey, ctx.self)
-          ctx.spawn(Player(), "player")
+          ctx.spawn(Player(PuzzleBoard()), "player")
           Acceptor()
         case _ => Behaviors.same
       }
@@ -80,9 +84,9 @@ object Actors {
     def running(ctx: ActorContext[Event]): Behavior[Event] = Behaviors.receiveMessage {
       case JoinersUpdated(joiners) =>
         ctx.log.info(s"JOINERS: ${joiners.toString()}")
-        joiners foreach (_ ! Joined(List()))
+        joiners foreach (_ ! Joined())
         running(ctx)
-      case _ => Behaviors.same
+      case _ => running(ctx)
     }
   }
 
@@ -95,14 +99,41 @@ object Actors {
      * - if this is the first player, it should create the game from scratch;
      * - if not, it should create the game retrieving the current state (not implemented yet).
      */
-    def apply(): Behavior[Event] = Behaviors.setup { ctx =>
+    def apply(puzzle: PuzzleBoard): Behavior[Event] = Behaviors.setup { ctx =>
       ctx.system.receptionist ! Receptionist.Register(PlayerServiceKey, ctx.self)
       val subscriptionAdapter = ctx.messageAdapter[Receptionist.Listing] {
         case Player.PlayerServiceKey.Listing(players) => PlayersUpdated(players)
       }
       ctx.system.receptionist ! Receptionist.Subscribe(Player.PlayerServiceKey, subscriptionAdapter)
+      running(ctx, puzzle, puzzle.tiles.map(t => t))
+    }
+
+    def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, state: List[SerializableTile]): Behavior[Event] = Behaviors.receiveMessage {
+      case PlayersUpdated(players) =>
+        ctx.log.info(s"PLAYERS: ${players.toString()}")
+        if (state.nonEmpty) {
+          players foreach (_ ! GameState(state, ctx.self))
+        }
+        running(ctx, puzzle, state)
+      case GameState(tiles, ref) => ref match {
+        case ref if !ref.equals(ctx.self) =>
+          puzzle.createTiles(Some(tiles))
+          puzzle.paintPuzzle()
+          puzzle.setVisible(true)
+          running(ctx, puzzle, state)
+        case _ => running(ctx, puzzle, state)
+      }
+      case _ => running(ctx, puzzle, state)
+    }
+  }
+
+  object GameCreator {
+    def apply(): Behavior[Event] = Behaviors.setup { ctx =>
       val puzzle = PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath)
+      puzzle.createTiles(None)
+      puzzle.paintPuzzle()
       puzzle.setVisible(true)
+      ctx.spawn(Player(puzzle), "player")
       Behaviors.empty
     }
   }

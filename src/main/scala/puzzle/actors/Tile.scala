@@ -34,11 +34,17 @@ case class TileButton(tile: Tile) extends JButton(new ImageIcon(tile.image)) {
  * @param selected whether the [[Tile]] has been selected by some player
  * @param player the [[ActorRef]] of the player who selected the [[Tile]]
  */
-case class SerializableTile(originalPosition: Int, currentPosition: Int, selected: Boolean, player: ActorRef[Event])
+case class SerializableTile(originalPosition: Int, currentPosition: Int, selected: Boolean, player: Option[ActorRef[Event]]) extends Comparable[SerializableTile] {
+  override def compareTo(o: SerializableTile): Int = o match {
+    case o: SerializableTile if currentPosition < o.currentPosition => -1
+    case o: SerializableTile if currentPosition == o.currentPosition => 0
+    case _: SerializableTile => 1
+  }
+}
 
 object SerializableTile {
   implicit def tileToSerializableTile(t: Tile): SerializableTile =
-    SerializableTile(t.originalPosition, t.currentPosition, selected = false, null)
+    SerializableTile(t.originalPosition, t.currentPosition, selected = false, None)
 }
 
 // The idea is to send the game state as List[SerializableTile]
