@@ -36,8 +36,8 @@ case class TileButton(tile: Tile) extends JButton(new ImageIcon(tile.image)) {
  */
 case class SerializableTile(originalPosition: Int, currentPosition: Int, selected: Boolean, player: Option[ActorRef[Event]]) extends Comparable[SerializableTile] {
   override def compareTo(o: SerializableTile): Int = o match {
-    case o: SerializableTile if currentPosition < o.currentPosition => -1
-    case o: SerializableTile if currentPosition == o.currentPosition => 0
+    case o: SerializableTile if originalPosition < o.originalPosition => -1
+    case o: SerializableTile if originalPosition == o.originalPosition => 0
     case _: SerializableTile => 1
   }
 }

@@ -33,20 +33,18 @@ case class PuzzleBoard(rows: Int,
     val imageHeight: Int = image.getHeight(null)
     var position: Int = 0
 
-    val (currentPositions: List[Int], originalPositions: List[Int]) = t match {
+    val positions: List[Int] = t match {
       case Some(tls) =>
-        (tls.map(tl => tl.currentPosition), tls.map(tl => tl.originalPosition))
+        tls.sorted.map(tl => tl.currentPosition)
       case None =>
-        val positions = LazyList.iterate(0)(_ + 1).take(rows * columns).toList
-        (Random.shuffle(positions), positions)
+        Random.shuffle(LazyList.iterate(0)(_ + 1).take(rows * columns).toList)
     }
-    println(currentPositions.toString(), originalPositions.toString())
     tiles = List()
     (0 until rows) foreach { i =>
       (0 until columns) foreach { j =>
         val imagePortion: Image = createImage(new FilteredImageSource(image.getSource,
           new CropImageFilter(j * imageWidth / columns, i * imageHeight / rows, imageWidth / columns, imageHeight / rows)))
-        tiles = tiles.appended(Tile(imagePortion, originalPositions(position), currentPositions(position)))
+        tiles = tiles.appended(Tile(imagePortion, position, positions(position)))
         position = position + 1
       }
     }
