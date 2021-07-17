@@ -11,7 +11,7 @@ object Events {
   case class JoinersUpdated(joiners: Set[ActorRef[Event]]) extends Event with CborSerializable
   case class PlayersUpdated(players: Set[ActorRef[Event]]) extends Event with CborSerializable
   case class Joined() extends Event with CborSerializable
-  case class GameState(tiles: List[SerializableTile], actorRef: ActorRef[Event]) extends Event with CborSerializable
+  case class GameState(tiles: List[SerializableTile]) extends Event with CborSerializable
 }
 
 import Actors._
@@ -105,25 +105,26 @@ object Actors {
         case Player.PlayerServiceKey.Listing(players) => PlayersUpdated(players)
       }
       ctx.system.receptionist ! Receptionist.Subscribe(Player.PlayerServiceKey, subscriptionAdapter)
-      running(ctx, puzzle, puzzle.tiles.map(t => t))
+      running(ctx, puzzle, puzzle.tiles.map(t => t), Set())
     }
 
-    def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, state: List[SerializableTile]): Behavior[Event] = Behaviors.receiveMessage {
-      case PlayersUpdated(players) =>
-        ctx.log.info(s"PLAYERS: ${players.toString()}")
+    def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, state: List[SerializableTile], players: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
+      case PlayersUpdated(p) =>
+        ctx.log.info(s"PLAYERS: ${p.toString()}")
         if (state.nonEmpty) {
-          players foreach (_ ! GameState(state, ctx.self))
+          p diff players foreach (_ ! GameState(state))
         }
-        running(ctx, puzzle, state)
-      case GameState(tiles, ref) => ref match {
-        case ref if !ref.equals(ctx.self) =>
-          puzzle.createTiles(Some(tiles))
-          puzzle.paintPuzzle()
-          puzzle.setVisible(true)
-          running(ctx, puzzle, state)
-        case _ => running(ctx, puzzle, state)
-      }
-      case _ => running(ctx, puzzle, state)
+        running(ctx, puzzle, state, p)
+      case GameState(tiles) =>
+        tiles match {
+          case t: List[SerializableTile] if !(t == state) =>
+            puzzle.createTiles(Some(tiles))
+            puzzle.paintPuzzle()
+            puzzle.setVisible(true)
+          case _ =>
+        }
+        running(ctx, puzzle, tiles, players)
+      case _ => running(ctx, puzzle, state, players)
     }
   }
 
