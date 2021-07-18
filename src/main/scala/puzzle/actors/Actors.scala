@@ -12,6 +12,8 @@ object Events {
   case class PlayersUpdated(players: Set[ActorRef[Event]]) extends Event with CborSerializable
   case class Joined() extends Event with CborSerializable
   case class GameState(tiles: List[SerializableTile]) extends Event with CborSerializable
+  case class LocalTileSelected(tile: SerializableTile, listener: Listener) extends Event with CborSerializable
+  case class RemoteTileSelected(tile: SerializableTile) extends Event with CborSerializable
 }
 
 import Actors._
@@ -60,7 +62,7 @@ object Actors {
         case Joined() =>
           ctx.log.info(s"JOINED ${ctx.self}")
           ctx.system.receptionist ! Receptionist.Deregister(JoinerServiceKey, ctx.self)
-          ctx.spawn(Player(PuzzleBoard()), "player")
+          ctx.spawn(Player(PuzzleBoard(ctx)), "player")
           Acceptor()
         case _ => Behaviors.same
       }
@@ -130,7 +132,7 @@ object Actors {
 
   object GameCreator {
     def apply(): Behavior[Event] = Behaviors.setup { ctx =>
-      val puzzle = PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath)
+      val puzzle = PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, ctx = ctx)
       puzzle.createTiles(None)
       puzzle.paintPuzzle()
       puzzle.setVisible(true)

@@ -1,5 +1,8 @@
 package puzzle.actors
 
+import akka.actor.typed.scaladsl.ActorContext
+import puzzle.actors.Events.{Event, LocalTileSelected}
+
 import java.awt.image.{BufferedImage, CropImageFilter, FilteredImageSource}
 import java.awt.{BorderLayout, Color, GridLayout, Image}
 import java.io.File
@@ -11,9 +14,10 @@ case class PuzzleBoard(rows: Int,
                        columns: Int,
                        imagePath: String,
                        var tiles: List[Tile] = List(),
-                       selectionManager: SelectionManager = new SelectionManager(),
+                       ctx: ActorContext[Event],
                        private var panel: JPanel = null) extends JFrame {
   setup()
+  private val selectionManager = ctx.spawn(SelectionManager(this), "SelectionManager")
 
   private def setup(): Unit = {
     setTitle("Distributed puzzle")
@@ -58,22 +62,24 @@ case class PuzzleBoard(rows: Int,
       panel.add(btn)
       btn.setBorder(BorderFactory.createLineBorder(Color.gray))
       btn.addActionListener(_ =>
-        selectionManager.selectTile(tile, () => {
-          paintPuzzle()
-          checkSolution()
-        }))
+        selectionManager ! LocalTileSelected(
+          SerializableTile(tile.originalPosition, tile.currentPosition, selected = true, Some(ctx.self)),
+          () => {
+            paintPuzzle()
+            checkSolution()
+          }))
     }
     }
     pack()
     setLocationRelativeTo(null)
   }
 
-  private def checkSolution(): Unit = if (tiles.forall(tile => tile.isInRightPlace))
+  def checkSolution(): Unit = if (tiles.forall(tile => tile.isInRightPlace))
     JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
 
 }
 
 object PuzzleBoard {
-  def apply(): PuzzleBoard = new PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath)
-  def apply(tiles: List[Tile]): PuzzleBoard = new PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, tiles)
+  def apply(ctx: ActorContext[Event]): PuzzleBoard = new PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, ctx = ctx)
+  //def apply(tiles: List[Tile], ctx: ActorContext[Event]): PuzzleBoard = new PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, tiles, ctx)
 }
