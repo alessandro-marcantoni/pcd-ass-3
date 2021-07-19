@@ -61,15 +61,14 @@ case class PuzzleBoard(rows: Int,
     tiles = tiles.sorted
     tiles foreach { tile => {
       val btn: TileButton = TileButton(tile)
+      selectedTile.find(e => e.currentPosition.equals(tile.currentPosition)) match {
+        case Some(_) => btn.setBorder(BorderFactory.createLineBorder(Color.red, 2))
+        case _ => btn.setBorder(BorderFactory.createLineBorder(Color.gray, 2))
+      }
       panel.add(btn)
-      btn.setBorder(BorderFactory.createLineBorder(Color.gray))
       btn.addActionListener(_ =>
         selectionManager ! LocalTileSelected(
-          SerializableTile(tile.originalPosition, tile.currentPosition, selected = true, Some(ctx.self)),
-          () => {
-            paintPuzzle()
-            checkSolution()
-          }))
+          SerializableTile(tile.originalPosition, tile.currentPosition, selected = true, Some(ctx.self))))
     }
     }
     pack()
@@ -79,13 +78,13 @@ case class PuzzleBoard(rows: Int,
   def checkSolution(): Unit = if (tiles.forall(tile => tile.isInRightPlace))
     JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
 
-  def state(): List[SerializableTile] = tiles.map(t => tileToSerializableTile(t)).collect({
-    case t: SerializableTile if selectedTile.exists(e => e.currentPosition.equals(t.currentPosition))
+  def state(): List[SerializableTile] = tiles.map(t => selectedTile.find(e => e.currentPosition.equals(t.currentPosition)) match {
+    case Some(tile) => SerializableTile(t.originalPosition, t.currentPosition, selected = true, tile.player)
+    case _ => SerializableTile(t.originalPosition, t.currentPosition, selected = false, None)
   })
 
 }
 
 object PuzzleBoard {
   def apply(ctx: ActorContext[Event]): PuzzleBoard = new PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, ctx = ctx)
-  //def apply(tiles: List[Tile], ctx: ActorContext[Event]): PuzzleBoard = new PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, tiles, ctx)
 }

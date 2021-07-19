@@ -11,8 +11,8 @@ object Events {
   case class ActorsUpdated(actors: Set[ActorRef[Event]]) extends Event with CborSerializable
   case class Joined() extends Event with CborSerializable
   case class GameState(tiles: List[SerializableTile]) extends Event with CborSerializable
-  case class LocalTileSelected(tile: SerializableTile, listener: Listener) extends Event with CborSerializable
-  case class RemoteTileSelected(tile: SerializableTile, listener: Listener) extends Event with CborSerializable
+  case class LocalTileSelected(tile: SerializableTile) extends Event with CborSerializable
+  case class RemoteTileSelected(tile: SerializableTile) extends Event with CborSerializable
 }
 
 import Actors._
@@ -106,26 +106,26 @@ object Actors {
         case Player.PlayerServiceKey.Listing(players) => ActorsUpdated(players)
       }
       ctx.system.receptionist ! Receptionist.Subscribe(Player.PlayerServiceKey, subscriptionAdapter)
-      running(ctx, puzzle, puzzle.tiles.map(t => t), Set())
+      running(ctx, puzzle, Set())
     }
 
-    def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, state: List[SerializableTile], players: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
+    def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
       case ActorsUpdated(p) =>
         ctx.log.info(s"PLAYERS: ${p.toString()}")
-        if (state.nonEmpty) {
-          p diff players foreach (_ ! GameState(state))
+        if (puzzle.state().nonEmpty) {
+          p diff players foreach (_ ! GameState(puzzle.state()))
         }
-        running(ctx, puzzle, state, p)
+        running(ctx, puzzle, p)
       case GameState(tiles) =>
         tiles match {
-          case t: List[SerializableTile] if !(t == state) =>
+          case t: List[SerializableTile] if !(t == puzzle.state()) =>
             puzzle.createTiles(Some(tiles))
             puzzle.paintPuzzle()
             puzzle.setVisible(true)
           case _ =>
         }
-        running(ctx, puzzle, tiles, players)
-      case _ => running(ctx, puzzle, state, players)
+        running(ctx, puzzle, players)
+      case _ => running(ctx, puzzle, players)
     }
   }
 

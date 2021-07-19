@@ -22,7 +22,7 @@ case class Tile(image: Image, originalPosition: Int, var currentPosition: Int) e
 case class TileButton(tile: Tile) extends JButton(new ImageIcon(tile.image)) {
   addMouseListener(new MouseAdapter {
     override def mouseClicked(e: MouseEvent): Unit =
-      setBorder(BorderFactory.createLineBorder(Color.red))
+      setBorder(BorderFactory.createLineBorder(Color.red, 2))
   })
 }
 
