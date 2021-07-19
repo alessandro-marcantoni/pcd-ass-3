@@ -19,16 +19,16 @@ object SelectionManager {
     running(ctx, puzzle, Set())
   }
 
-  def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
+  def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, managers: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
     case ActorsUpdated(players) => running(ctx, puzzle, players)
     case LocalTileSelected(tile, listener) =>
       selectTile(tile, listener, puzzle)
-      (players diff Set(ctx.self)) foreach (_ ! RemoteTileSelected(tile))
-      running(ctx, puzzle, players)
+      (managers diff Set(ctx.self)) foreach (_ ! RemoteTileSelected(tile))
+      running(ctx, puzzle, managers)
     case RemoteTileSelected(tile) =>
       ctx.log.info(s"REMOTE TILE SELECTED: ${tile.toString}")
-      running(ctx, puzzle, players)
-    case _ => running(ctx, puzzle, players)
+      running(ctx, puzzle, managers)
+    case _ => running(ctx, puzzle, managers)
   }
 
   private def selectTile(tile: SerializableTile, listener: Listener, puzzle: PuzzleBoard): Unit = if (selectionActive) {
