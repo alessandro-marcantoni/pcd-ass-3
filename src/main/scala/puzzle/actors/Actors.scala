@@ -8,8 +8,7 @@ import puzzle.actors.Events._
 
 object Events {
   sealed trait Event
-  case class JoinersUpdated(joiners: Set[ActorRef[Event]]) extends Event with CborSerializable
-  case class PlayersUpdated(players: Set[ActorRef[Event]]) extends Event with CborSerializable
+  case class ActorsUpdated(actors: Set[ActorRef[Event]]) extends Event with CborSerializable
   case class Joined() extends Event with CborSerializable
   case class GameState(tiles: List[SerializableTile]) extends Event with CborSerializable
   case class LocalTileSelected(tile: SerializableTile, listener: Listener) extends Event with CborSerializable
@@ -77,14 +76,14 @@ object Actors {
      */
     def apply(): Behavior[Event] = Behaviors.setup { ctx =>
       val subscriptionAdapter = ctx.messageAdapter[Receptionist.Listing] {
-        case Joiner.JoinerServiceKey.Listing(joiners) => JoinersUpdated(joiners)
+        case Joiner.JoinerServiceKey.Listing(joiners) => ActorsUpdated(joiners)
       }
       ctx.system.receptionist ! Receptionist.Subscribe(Joiner.JoinerServiceKey, subscriptionAdapter)
       running(ctx)
     }
 
     def running(ctx: ActorContext[Event]): Behavior[Event] = Behaviors.receiveMessage {
-      case JoinersUpdated(joiners) =>
+      case ActorsUpdated(joiners) =>
         ctx.log.info(s"JOINERS: ${joiners.toString()}")
         joiners foreach (_ ! Joined())
         running(ctx)
@@ -104,14 +103,14 @@ object Actors {
     def apply(puzzle: PuzzleBoard): Behavior[Event] = Behaviors.setup { ctx =>
       ctx.system.receptionist ! Receptionist.Register(PlayerServiceKey, ctx.self)
       val subscriptionAdapter = ctx.messageAdapter[Receptionist.Listing] {
-        case Player.PlayerServiceKey.Listing(players) => PlayersUpdated(players)
+        case Player.PlayerServiceKey.Listing(players) => ActorsUpdated(players)
       }
       ctx.system.receptionist ! Receptionist.Subscribe(Player.PlayerServiceKey, subscriptionAdapter)
       running(ctx, puzzle, puzzle.tiles.map(t => t), Set())
     }
 
     def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, state: List[SerializableTile], players: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
-      case PlayersUpdated(p) =>
+      case ActorsUpdated(p) =>
         ctx.log.info(s"PLAYERS: ${p.toString()}")
         if (state.nonEmpty) {
           p diff players foreach (_ ! GameState(state))
