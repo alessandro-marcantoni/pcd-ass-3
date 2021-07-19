@@ -12,7 +12,7 @@ object Events {
   case class Joined() extends Event with CborSerializable
   case class GameState(tiles: List[SerializableTile]) extends Event with CborSerializable
   case class LocalTileSelected(tile: SerializableTile, listener: Listener) extends Event with CborSerializable
-  case class RemoteTileSelected(tile: SerializableTile) extends Event with CborSerializable
+  case class RemoteTileSelected(tile: SerializableTile, listener: Listener) extends Event with CborSerializable
 }
 
 import Actors._

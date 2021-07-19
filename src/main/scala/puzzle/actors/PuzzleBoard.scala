@@ -2,6 +2,7 @@ package puzzle.actors
 
 import akka.actor.typed.scaladsl.ActorContext
 import puzzle.actors.Events.{Event, LocalTileSelected}
+import puzzle.actors.SelectionManager.{selectedTile, setupTiles}
 
 import java.awt.image.{BufferedImage, CropImageFilter, FilteredImageSource}
 import java.awt.{BorderLayout, Color, GridLayout, Image}
@@ -39,6 +40,7 @@ case class PuzzleBoard(rows: Int,
 
     val positions: List[Int] = t match {
       case Some(tls) =>
+        setupTiles(tls)
         tls.sorted.map(tl => tl.currentPosition)
       case None =>
         Random.shuffle(LazyList.iterate(0)(_ + 1).take(rows * columns).toList)
@@ -76,6 +78,10 @@ case class PuzzleBoard(rows: Int,
 
   def checkSolution(): Unit = if (tiles.forall(tile => tile.isInRightPlace))
     JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
+
+  def state(): List[SerializableTile] = tiles.map(t => tileToSerializableTile(t)).collect({
+    case t: SerializableTile if selectedTile.exists(e => e.currentPosition.equals(t.currentPosition))
+  })
 
 }
 
