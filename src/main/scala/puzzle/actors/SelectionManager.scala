@@ -5,6 +5,8 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import puzzle.actors.Events._
 
+import javax.swing.JOptionPane
+
 object SelectionManager {
   var selectedTile: List[SerializableTile] = List()
   val SelectionManagerServiceKey: ServiceKey[Event] = ServiceKey[Event]("SelectionManager")
@@ -26,6 +28,13 @@ object SelectionManager {
       running(ctx, puzzle, managers)
     case RemoteTileSelected(tile) =>
       selectTile(tile, puzzle)
+      running(ctx, puzzle, managers)
+    case LocalPuzzleCompleted() =>
+      (managers diff Set(ctx.self)) foreach (_ ! RemotePuzzleCompleted())
+      JOptionPane.showMessageDialog(puzzle, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
+      running(ctx, puzzle, managers)
+    case RemotePuzzleCompleted() =>
+      JOptionPane.showMessageDialog(puzzle, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
       running(ctx, puzzle, managers)
     case _ => running(ctx, puzzle, managers)
   }

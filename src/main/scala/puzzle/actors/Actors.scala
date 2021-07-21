@@ -13,6 +13,8 @@ object Events {
   case class GameState(tiles: List[SerializableTile]) extends Event with CborSerializable
   case class LocalTileSelected(tile: SerializableTile) extends Event with CborSerializable
   case class RemoteTileSelected(tile: SerializableTile) extends Event with CborSerializable
+  case class LocalPuzzleCompleted() extends Event with CborSerializable
+  case class RemotePuzzleCompleted() extends Event with CborSerializable
 }
 
 import Actors._

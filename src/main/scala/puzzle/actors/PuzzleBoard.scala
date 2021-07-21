@@ -1,7 +1,7 @@
 package puzzle.actors
 
 import akka.actor.typed.scaladsl.ActorContext
-import puzzle.actors.Events.{Event, LocalTileSelected}
+import puzzle.actors.Events.{Event, LocalPuzzleCompleted, LocalTileSelected}
 import puzzle.actors.SelectionManager.{selectedTile, setupTiles}
 
 import java.awt.image.{BufferedImage, CropImageFilter, FilteredImageSource}
@@ -76,7 +76,8 @@ case class PuzzleBoard(rows: Int,
   }
 
   def checkSolution(): Unit = if (tiles.forall(tile => tile.isInRightPlace))
-    JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
+    selectionManager ! LocalPuzzleCompleted()
+    //JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
 
   def state(): List[SerializableTile] = tiles.map(t => selectedTile.find(e => e.currentPosition.equals(t.currentPosition)) match {
     case Some(tile) => SerializableTile(t.originalPosition, t.currentPosition, selected = true, tile.player)
