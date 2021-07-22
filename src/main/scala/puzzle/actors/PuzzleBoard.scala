@@ -32,7 +32,14 @@ case class PuzzleBoard(rows: Int,
     panel = board
   }
 
-  def createTiles(t: Option[List[SerializableTile]]): Unit = {
+  /**
+   * Creates the tiles for the puzzle:
+   * - with no parameters it creates a new instance of the game
+   * - with a [[List[SerializableTile]]] it creates the game from the received list.
+   *
+   * @param t The list of [[SerializableTile]] received (it is optional).
+   */
+  def createTiles(t: Option[List[SerializableTile]] = None): Unit = {
     val image: BufferedImage = ImageIO.read(new File(imagePath))
     val imageWidth: Int = image.getWidth(null)
     val imageHeight: Int = image.getHeight(null)

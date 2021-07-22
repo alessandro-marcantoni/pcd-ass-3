@@ -27,7 +27,7 @@ case class TileButton(tile: Tile) extends JButton(new ImageIcon(tile.image)) {
 }
 
 /**
- * Version of a tile to be sent by Akka message.
+ * Version of a tile to be sent through Akka message.
  *
  * @param originalPosition original position of the [[Tile]]
  * @param currentPosition current position of the [[Tile]]
@@ -46,5 +46,3 @@ object SerializableTile {
   implicit def tileToSerializableTile(t: Tile): SerializableTile =
     SerializableTile(t.originalPosition, t.currentPosition, selected = false, None)
 }
-
-// The idea is to send the game state as List[SerializableTile]

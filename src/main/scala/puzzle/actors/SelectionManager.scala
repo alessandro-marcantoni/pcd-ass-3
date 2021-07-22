@@ -11,6 +11,14 @@ object SelectionManager {
   var selectedTiles: List[SerializableTile] = List()
   val SelectionManagerServiceKey: ServiceKey[Event] = ServiceKey[Event]("SelectionManager")
 
+  /**
+   * The purpose of the [[SelectionManager]] actor is to handle the selection of the game tiles.
+   * If a player selects two tiles, these are swapped.
+   * It now supports multiple players: if a tile is already selected by a player,
+   * no player can select that one until it is released from the first player.
+   *
+   * @param puzzle The instance of the puzzle game associated to this [[SelectionManager]].
+   */
   def apply(puzzle: PuzzleBoard): Behavior[Event] = Behaviors.setup { ctx =>
     ctx.system.receptionist ! Receptionist.Register(SelectionManagerServiceKey, ctx.self)
     val subscriptionAdapter = ctx.messageAdapter[Receptionist.Listing] {
