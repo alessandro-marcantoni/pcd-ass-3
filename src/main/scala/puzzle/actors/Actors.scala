@@ -9,37 +9,28 @@ import puzzle.actors.Events._
 object Events {
   sealed trait Event
   case class ActorsUpdated(actors: Set[ActorRef[Event]]) extends Event with CborSerializable
-  case class Joined() extends Event with CborSerializable
+  case class Joined(player: ActorRef[Event]) extends Event with CborSerializable
+
+  case class GameStateRequest(replyTo: ActorRef[Event]) extends Event with CborSerializable
   case class GameState(tiles: List[SerializableTile]) extends Event with CborSerializable
+
   case class LocalTileSelected(tile: SerializableTile) extends Event with CborSerializable
   case class RemoteTileSelected(tile: SerializableTile) extends Event with CborSerializable
+
   case class LocalPuzzleCompleted() extends Event with CborSerializable
   case class RemotePuzzleCompleted() extends Event with CborSerializable
 }
 
-import Actors._
-/**
- * By far the system:
- * - spawns the actors by role:
- *    the first player is the leader (sbt "runMain puzzle.actors.DistributedPuzzle 25251")
- *    and the other players are joiners (sbt "runMain puzzle.actors.DistributedPuzzle").
- * - when the first player is spawned, it is an [[Acceptor]] waiting for [[Joiner]]s.
- * - when a [[Joiner]] is joined, it becomes an [[Acceptor]] himself waiting for [[Joiner]]s.
- * - the second phase involves starting the game by the [[Player]]:
- *   - the first player creates the game;
- *   - the others retrieve the game state.
- */
 object Actors {
 
   object RootBehavior {
     /**
-     * If the role is "leader" (the first player), we create an [[Acceptor]].
+     * If the role is "leader" (the first player), we create a [[GameCreator]].
      * If the role is "player" (not the first), we create a [[Joiner]].
      */
     def apply(): Behavior[Nothing] = Behaviors.setup[Nothing] { ctx =>
       val cluster = Cluster(ctx.system)
       if (cluster.selfMember.hasRole("leader")) {
-        ctx.spawn(Acceptor(), "acceptor")
         ctx.spawn(GameCreator(), "player")
       }
       if (cluster.selfMember.hasRole("player")) {
@@ -55,16 +46,21 @@ object Actors {
     /**
      * The [[Joiner]] registers himself to the [[Receptionist]], which makes him visible from the other actors.
      * He is waiting for an [[Acceptor]] to accept him;
-     * when he receives a [[Joined]] message, he de-registers himself and becomes an [[Acceptor]].
+     * when he receives a [[Joined]] message, he requests the [[GameState]] to a [[Player]].
+     * When he receives the response from that [[Player]], he de-registers himself from the [[Receptionist]],
+     * he spawns a new [[Player]] and he becomes an [[Acceptor]] himself.
      */
     def apply(): Behavior[Event] = Behaviors.setup { ctx =>
       ctx.system.receptionist ! Receptionist.Register(JoinerServiceKey, ctx.self)
       Behaviors.receiveMessage {
-        case Joined() =>
+        case Joined(player) =>
           ctx.log.info(s"JOINED ${ctx.self}")
+          player ! GameStateRequest(ctx.self)
+          Behaviors.same
+        case GameState(tiles) =>
           ctx.system.receptionist ! Receptionist.Deregister(JoinerServiceKey, ctx.self)
-          ctx.spawn(Player(PuzzleBoard(ctx)), "player")
-          Acceptor()
+          val newPlayer: ActorRef[Event] = ctx.spawn(Player(tiles, PuzzleBoard(ctx)), "player")
+          Acceptor(newPlayer)
         case _ => Behaviors.same
       }
     }
@@ -74,22 +70,25 @@ object Actors {
     /**
      * The [[Acceptor]] subscribes to the [[Receptionist]],
      * which will notify him if some [[Joiner]] registers of de-registers.
-     * When a [[Joiner]] (or more) registers himself, the [[Acceptor]] sends him a message to join him.
+     * When a [[Joiner]] (or more) registers himself, the [[Acceptor]] sends him a message
+     * with the [[ActorRef]] of a [[Player]] to contact.
+     *
+     * @param player The [[ActorRef]] of the [[Player]] that a [[Joiner]] should contact.
      */
-    def apply(): Behavior[Event] = Behaviors.setup { ctx =>
+    def apply(player: ActorRef[Event]): Behavior[Event] = Behaviors.setup { ctx =>
       val subscriptionAdapter = ctx.messageAdapter[Receptionist.Listing] {
         case Joiner.JoinerServiceKey.Listing(joiners) => ActorsUpdated(joiners)
       }
       ctx.system.receptionist ! Receptionist.Subscribe(Joiner.JoinerServiceKey, subscriptionAdapter)
-      running(ctx)
+      running(player, ctx)
     }
 
-    def running(ctx: ActorContext[Event]): Behavior[Event] = Behaviors.receiveMessage {
+    def running(player: ActorRef[Event], ctx: ActorContext[Event]): Behavior[Event] = Behaviors.receiveMessage {
       case ActorsUpdated(joiners) =>
         ctx.log.info(s"JOINERS: ${joiners.toString()}")
-        joiners foreach (_ ! Joined())
-        running(ctx)
-      case _ => running(ctx)
+        joiners foreach (_ ! Joined(player))
+        running(player, ctx)
+      case _ => running(player, ctx)
     }
   }
 
@@ -98,46 +97,43 @@ object Actors {
 
     /**
      * The [[Player]] is always aware of the other [[Player]]s thanks to the [[Receptionist]].
-     * It starts the game for the current player:
-     * - if this is the first player, it should create the game from scratch;
-     * - if not, it should create the game retrieving the current state (not implemented yet).
+     * It starts the game for the current player.
+     *
+     * @param tiles The current state of the game.
+     * @param puzzle The instance of the game.
      */
-    def apply(puzzle: PuzzleBoard): Behavior[Event] = Behaviors.setup { ctx =>
+    def apply(tiles: List[SerializableTile], puzzle: PuzzleBoard): Behavior[Event] = Behaviors.setup { ctx =>
       ctx.system.receptionist ! Receptionist.Register(PlayerServiceKey, ctx.self)
       val subscriptionAdapter = ctx.messageAdapter[Receptionist.Listing] {
         case Player.PlayerServiceKey.Listing(players) => ActorsUpdated(players)
       }
       ctx.system.receptionist ! Receptionist.Subscribe(Player.PlayerServiceKey, subscriptionAdapter)
+      puzzle.createTiles(Some(tiles))
+      puzzle.paintPuzzle()
+      puzzle.setVisible(true)
       running(ctx, puzzle, Set())
     }
 
     def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
       case ActorsUpdated(p) =>
         ctx.log.info(s"PLAYERS: ${p.toString()}")
-        if (puzzle.state().nonEmpty) {
-          p diff players foreach (_ ! GameState(puzzle.state()))
-        }
         running(ctx, puzzle, p)
-      case GameState(tiles) =>
-        tiles match {
-          case t: List[SerializableTile] if !(t == puzzle.state()) =>
-            puzzle.createTiles(Some(tiles))
-            puzzle.paintPuzzle()
-            puzzle.setVisible(true)
-          case _ =>
-        }
-        running(ctx, puzzle, players)
+      case GameStateRequest(replyTo) =>
+        replyTo ! GameState(puzzle.state())
+        Behaviors.same
       case _ => running(ctx, puzzle, players)
     }
   }
 
   object GameCreator {
+    /**
+     * The [[GameCreator]] creates a new puzzle game, then it spawns the first [[Player]] and an [[Acceptor]].
+     */
     def apply(): Behavior[Event] = Behaviors.setup { ctx =>
       val puzzle = PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, ctx = ctx)
-      puzzle.createTiles(None)
-      puzzle.paintPuzzle()
-      puzzle.setVisible(true)
-      ctx.spawn(Player(puzzle), "player")
+      puzzle.createTiles()
+      val player: ActorRef[Event] = ctx.spawn(Player(puzzle.state(), puzzle), "player")
+      ctx.spawn(Acceptor(player), "acceptor")
       Behaviors.empty
     }
   }
