@@ -72,7 +72,7 @@ case class PuzzleBoard(rows: Int,
     }
     }
     pack()
-    setLocationRelativeTo(null)
+    //setLocationRelativeTo(null)
   }
 
   def checkSolution(): Unit = if (tiles.forall(tile => tile.isInRightPlace))
