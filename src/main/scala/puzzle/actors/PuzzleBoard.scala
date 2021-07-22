@@ -2,7 +2,7 @@ package puzzle.actors
 
 import akka.actor.typed.scaladsl.ActorContext
 import puzzle.actors.Events.{Event, LocalPuzzleCompleted, LocalTileSelected}
-import puzzle.actors.SelectionManager.{selectedTile, setupTiles}
+import puzzle.actors.SelectionManager.{selectedTiles, setupTiles}
 
 import java.awt.image.{BufferedImage, CropImageFilter, FilteredImageSource}
 import java.awt.{BorderLayout, Color, GridLayout, Image}
@@ -61,14 +61,14 @@ case class PuzzleBoard(rows: Int,
     tiles = tiles.sorted
     tiles foreach { tile => {
       val btn: TileButton = TileButton(tile)
-      selectedTile.find(e => e.currentPosition.equals(tile.currentPosition)) match {
+      selectedTiles.find(e => e.currentPosition.equals(tile.currentPosition)) match {
         case Some(_) => btn.setBorder(BorderFactory.createLineBorder(Color.red, 2))
         case _ => btn.setBorder(BorderFactory.createLineBorder(Color.gray, 2))
       }
       panel.add(btn)
       btn.addActionListener(_ =>
         selectionManager ! LocalTileSelected(
-          SerializableTile(tile.originalPosition, tile.currentPosition, selected = true, Some(ctx.self))))
+          SerializableTile(tile.originalPosition, tile.currentPosition, selected = true, Some(selectionManager))))
     }
     }
     pack()
@@ -79,7 +79,7 @@ case class PuzzleBoard(rows: Int,
     selectionManager ! LocalPuzzleCompleted()
     //JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
 
-  def state(): List[SerializableTile] = tiles.map(t => selectedTile.find(e => e.currentPosition.equals(t.currentPosition)) match {
+  def state(): List[SerializableTile] = tiles.map(t => selectedTiles.find(e => e.currentPosition.equals(t.currentPosition)) match {
     case Some(tile) => SerializableTile(t.originalPosition, t.currentPosition, selected = true, tile.player)
     case _ => SerializableTile(t.originalPosition, t.currentPosition, selected = false, None)
   })

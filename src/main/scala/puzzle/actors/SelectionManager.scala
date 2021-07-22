@@ -8,7 +8,7 @@ import puzzle.actors.Events._
 import javax.swing.JOptionPane
 
 object SelectionManager {
-  var selectedTile: List[SerializableTile] = List()
+  var selectedTiles: List[SerializableTile] = List()
   val SelectionManagerServiceKey: ServiceKey[Event] = ServiceKey[Event]("SelectionManager")
 
   def apply(puzzle: PuzzleBoard): Behavior[Event] = Behaviors.setup { ctx =>
@@ -21,8 +21,12 @@ object SelectionManager {
   }
 
   def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, managers: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
-    case ActorsUpdated(players) =>
-      running(ctx, puzzle, players)
+    case ActorsUpdated(newManagers) =>
+      (managers diff newManagers) foreach (r => {
+        selectedTiles = selectedTiles diff selectedTiles.filter(t => t.player contains r)
+        puzzle.paintPuzzle()
+      })
+      running(ctx, puzzle, newManagers)
     case LocalTileSelected(tile) =>
       selectTile(tile, puzzle)
       (managers diff Set(ctx.self)) foreach (_ ! RemoteTileSelected(tile))
@@ -40,21 +44,21 @@ object SelectionManager {
     case _ => running(ctx, puzzle, managers)
   }
 
-  private def selectTile(tile: SerializableTile, puzzle: PuzzleBoard): Unit = if (!selectedTile.exists(t => t.currentPosition.equals(tile.currentPosition))) {
+  private def selectTile(tile: SerializableTile, puzzle: PuzzleBoard): Unit = if (!selectedTiles.exists(t => t.currentPosition.equals(tile.currentPosition))) {
     tile match {
-      case t: SerializableTile if selectedTile.exists(el => el.player.equals(tile.player)) =>
-        swap(selectedTile.filter(t => t.player.equals(tile.player)).head, t, puzzle)
-        selectedTile = selectedTile match {
-          case list: List[SerializableTile] => list diff List(selectedTile.filter(e => e.player.equals(t.player)).head)
-          case _ => selectedTile
+      case t: SerializableTile if selectedTiles.exists(el => el.player.equals(tile.player)) =>
+        swap(selectedTiles.filter(t => t.player.equals(tile.player)).head, t, puzzle)
+        selectedTiles = selectedTiles match {
+          case list: List[SerializableTile] => list diff List(selectedTiles.filter(e => e.player.equals(t.player)).head)
+          case _ => selectedTiles
         }
-      case _ => selectedTile = selectedTile appended tile
+      case _ => selectedTiles = selectedTiles appended tile
     }
     puzzle.paintPuzzle()
     puzzle.checkSolution()
   }
 
-  def setupTiles(tiles: List[SerializableTile]): Unit = selectedTile = tiles.filter(t => t.selected)
+  def setupTiles(tiles: List[SerializableTile]): Unit = selectedTiles = tiles.filter(t => t.selected)
 
   private def swap(st1: SerializableTile, st2: SerializableTile, puzzle: PuzzleBoard): Unit = {
     val t1 = puzzle.tiles.filter(t => t.currentPosition.equals(st1.currentPosition)).head
