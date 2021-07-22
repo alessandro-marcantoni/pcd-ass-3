@@ -21,7 +21,8 @@ object SelectionManager {
   }
 
   def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, managers: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
-    case ActorsUpdated(players) => running(ctx, puzzle, players)
+    case ActorsUpdated(players) =>
+      running(ctx, puzzle, players)
     case LocalTileSelected(tile) =>
       selectTile(tile, puzzle)
       (managers diff Set(ctx.self)) foreach (_ ! RemoteTileSelected(tile))
@@ -32,10 +33,10 @@ object SelectionManager {
     case LocalPuzzleCompleted() =>
       (managers diff Set(ctx.self)) foreach (_ ! RemotePuzzleCompleted())
       JOptionPane.showMessageDialog(puzzle, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
-      running(ctx, puzzle, managers)
+      Behaviors.empty
     case RemotePuzzleCompleted() =>
       JOptionPane.showMessageDialog(puzzle, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
-      running(ctx, puzzle, managers)
+      Behaviors.empty
     case _ => running(ctx, puzzle, managers)
   }
 
