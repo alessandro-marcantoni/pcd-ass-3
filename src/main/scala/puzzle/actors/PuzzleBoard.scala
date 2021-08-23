@@ -1,5 +1,6 @@
 package puzzle.actors
 
+import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.ActorContext
 import puzzle.actors.Events.{Event, LocalPuzzleCompleted, LocalTileSelected}
 import puzzle.actors.SelectionManager.{selectedTiles, setupTiles}
@@ -18,7 +19,7 @@ case class PuzzleBoard(rows: Int,
                        ctx: ActorContext[Event],
                        private var panel: JPanel = null) extends JFrame {
   setup()
-  private val selectionManager = ctx.spawn(SelectionManager(this), "SelectionManager")
+  val selectionManager: ActorRef[Event] = ctx.spawn(SelectionManager(this, ctx.self), "SelectionManager")
 
   private def setup(): Unit = {
     setTitle("Distributed puzzle")
@@ -75,7 +76,7 @@ case class PuzzleBoard(rows: Int,
       panel.add(btn)
       btn.addActionListener(_ =>
         selectionManager ! LocalTileSelected(
-          SerializableTile(tile.originalPosition, tile.currentPosition, selected = true, Some(selectionManager))))
+          SerializableTile(tile.originalPosition, tile.currentPosition, selected = true, Some(selectionManager)), ctx.self))
     }
     }
     pack()
@@ -83,7 +84,7 @@ case class PuzzleBoard(rows: Int,
   }
 
   def checkSolution(): Unit = if (tiles.forall(tile => tile.isInRightPlace))
-    selectionManager ! LocalPuzzleCompleted()
+    selectionManager ! LocalPuzzleCompleted(ctx.self)
     //JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
 
   def state(): List[SerializableTile] = tiles.map(t => selectedTiles.find(e => e.currentPosition.equals(t.currentPosition)) match {

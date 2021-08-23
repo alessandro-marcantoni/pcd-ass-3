@@ -5,63 +5,48 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.typed.Cluster
 import puzzle.actors.Cut.PlayerState
+import puzzle.actors.EventConversions._
 import puzzle.actors.Events._
-
-import scala.collection.mutable
 
 object Events {
   sealed trait Event
+  sealed trait GameEvent extends Event {
+    def from: ActorRef[Event]
+  }
+  sealed trait RemoteGameEvent extends GameEvent
+  sealed trait LocalGameEvent extends GameEvent
+
   case class ActorsUpdated(actors: Set[ActorRef[Event]]) extends Event with CborSerializable
   case class Joined(player: ActorRef[Event]) extends Event with CborSerializable
 
   case class GameStateRequest(replyTo: ActorRef[Event]) extends Event with CborSerializable
   case class GameState(tiles: List[SerializableTile]) extends Event with CborSerializable
 
-  case class LocalTileSelected(tile: SerializableTile) extends Event with CborSerializable
-  case class RemoteTileSelected(tile: SerializableTile) extends Event with CborSerializable
+  case class LocalTileSelected(tile: SerializableTile, override val from: ActorRef[Event]) extends LocalGameEvent with CborSerializable
+  case class RemoteTileSelected(tile: SerializableTile, override val from: ActorRef[Event]) extends RemoteGameEvent with CborSerializable
 
-  case class LocalPuzzleCompleted() extends Event with CborSerializable
-  case class RemotePuzzleCompleted() extends Event with CborSerializable
+  case class LocalPuzzleCompleted(override val from: ActorRef[Event]) extends LocalGameEvent with CborSerializable
+  case class RemotePuzzleCompleted(override val from: ActorRef[Event]) extends RemoteGameEvent with CborSerializable
 
   case class SnapshotRequest(from: ActorRef[Event]) extends Event with CborSerializable
   case class CutCompleted(replyTo: Option[ActorRef[Event]]) extends Event with CborSerializable
 }
 
-object Cut {
-  /**
-   * Color representing the state of the [[Player]] during the cut of the system.
-   */
-  sealed trait Color
-  case object Red extends Color
-  case object White extends Color
-
-  /**
-   * Player state at the moment of snapshot request for the cut system
-   * @param color The color representing the state
-   * @param players The players on the cut
-   */
-  case class PlayerState(var color: Color = White, players: Set[ActorRef[Event]]) {
-    var channels: mutable.Map[ActorRef[Event], mutable.Queue[Event]] = mutable.Map()
-    var closed: mutable.Map[ActorRef[Event], Boolean] = mutable.Map()
-    // Initialize data structures for the cut
-    players foreach { p =>
-      channels += (p -> mutable.Queue())
-      closed += (p -> false)
-    }
-
-    def turnRed(from: ActorRef[Event]): Unit = {
-      color = Red
-      players foreach (_ ! SnapshotRequest(from))
-    }
-
-    def closeChannel(channel: ActorRef[Event]): Unit = {
-      closed += (channel -> true)
-    }
-
-    def allClosed: Boolean = {
-      closed forall (p => p._2)
-    }
+object EventConversions {
+  trait EventConverter[A] {
+    def toRemoteEvent(event: A): RemoteGameEvent
   }
+
+  implicit val tileSelectedConverter: EventConverter[LocalTileSelected] = event => RemoteTileSelected(event.tile, event.from)
+  implicit val puzzleCompletedConverter: EventConverter[LocalPuzzleCompleted] = event => RemotePuzzleCompleted(event.from)
+  implicit val genericConverter: EventConverter[LocalGameEvent] = {
+    case e: LocalTileSelected => toRemoteEvent(e)
+    case e: LocalPuzzleCompleted => toRemoteEvent(e)
+  }
+
+  def toRemoteEvent[A](event: A)(implicit converter: EventConverter[A]): RemoteGameEvent =
+    converter.toRemoteEvent(event)
+
 }
 
 object Actors {
@@ -102,8 +87,9 @@ object Actors {
           Behaviors.same
         case GameState(tiles) =>
           ctx.system.receptionist ! Receptionist.Deregister(JoinerServiceKey, ctx.self)
-          val newPlayer: ActorRef[Event] = ctx.spawn(Player(tiles, PuzzleBoard(ctx)), "player")
-          Acceptor(newPlayer)
+          //val newPlayer: ActorRef[Event] = ctx.spawn(Player(tiles, PuzzleBoard(ctx)), "player")
+          ctx.spawn(Acceptor(ctx.self), "acceptor")
+          Player(tiles, PuzzleBoard(ctx))
         case _ => Behaviors.same
       }
     }
@@ -162,21 +148,41 @@ object Actors {
         ctx.log.info(s"PLAYERS: ${p.toString()}")
         running(ctx, puzzle, p)
       case GameStateRequest(replyTo) =>
-        val state = PlayerState(players = players diff Set(ctx.self))
-        state.turnRed(ctx.self)
-        onCut(ctx, puzzle, players, state, Some(replyTo))
+        if (players.size > 1) {
+          val state = PlayerState(players = players diff Set(ctx.self))
+          state.turnRed(ctx.self)
+          onCut(ctx, puzzle, players, state, Some(replyTo))
+        } else {
+          replyTo ! GameState(puzzle.state())
+          running(ctx, puzzle, players)
+        }
       case SnapshotRequest(from) =>
         val state = PlayerState(players = players diff Set(ctx.self))
         state.turnRed(ctx.self)
         state.closeChannel(from)
         onCut(ctx, puzzle, players, state, Option.empty)
+      case event: LocalGameEvent =>
+        (players diff Set(ctx.self)) foreach (_ ! toRemoteEvent(event))
+        running(ctx, puzzle, players)
+      case event: RemoteGameEvent =>
+        puzzle.selectionManager ! event
+        running(ctx, puzzle, players)
       case _ => running(ctx, puzzle, players)
     }
 
     def onCut(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]], state: PlayerState, replyTo: Option[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
+      case ActorsUpdated(p) =>
+        state.enqueue(ActorsUpdated(p))
+        onCut(ctx, puzzle, players, state, replyTo)
+      case GameStateRequest(from) =>
+        if (state.notClosed(from)) state.enqueue(GameStateRequest(from))
+        onCut(ctx, puzzle, players, state, replyTo)
       case SnapshotRequest(from) =>
         state.closeChannel(from)
         if (state.allClosed) ctx.self ! CutCompleted(replyTo)
+        onCut(ctx, puzzle, players, state, replyTo)
+      case event: GameEvent =>
+        if (state.notClosed(event.from)) state.enqueue(event)
         onCut(ctx, puzzle, players, state, replyTo)
       case CutCompleted(replyTo) =>
         if (replyTo.nonEmpty) replyTo.get ! GameState(puzzle.state())
@@ -192,9 +198,9 @@ object Actors {
     def apply(): Behavior[Event] = Behaviors.setup { ctx =>
       val puzzle = PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, ctx = ctx)
       puzzle.createTiles()
-      val player: ActorRef[Event] = ctx.spawn(Player(puzzle.state(), puzzle), "player")
-      ctx.spawn(Acceptor(player), "acceptor")
-      Behaviors.empty
+      //val player: ActorRef[Event] = ctx.spawn(Player(puzzle.state(), puzzle), "player")
+      ctx.spawn(Acceptor(ctx.self), "acceptor")
+      Player(puzzle.state(), puzzle)
     }
   }
 
