@@ -4,7 +4,10 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.typed.Cluster
+import puzzle.actors.Cut.PlayerState
 import puzzle.actors.Events._
+
+import scala.collection.mutable
 
 object Events {
   sealed trait Event
@@ -19,6 +22,46 @@ object Events {
 
   case class LocalPuzzleCompleted() extends Event with CborSerializable
   case class RemotePuzzleCompleted() extends Event with CborSerializable
+
+  case class SnapshotRequest(from: ActorRef[Event]) extends Event with CborSerializable
+  case class CutCompleted(replyTo: Option[ActorRef[Event]]) extends Event with CborSerializable
+}
+
+object Cut {
+  /**
+   * Color representing the state of the [[Player]] during the cut of the system.
+   */
+  sealed trait Color
+  case object Red extends Color
+  case object White extends Color
+
+  /**
+   * Player state at the moment of snapshot request for the cut system
+   * @param color The color representing the state
+   * @param players The players on the cut
+   */
+  case class PlayerState(var color: Color = White, players: Set[ActorRef[Event]]) {
+    var channels: mutable.Map[ActorRef[Event], mutable.Queue[Event]] = mutable.Map()
+    var closed: mutable.Map[ActorRef[Event], Boolean] = mutable.Map()
+    // Initialize data structures for the cut
+    players foreach { p =>
+      channels += (p -> mutable.Queue())
+      closed += (p -> false)
+    }
+
+    def turnRed(from: ActorRef[Event]): Unit = {
+      color = Red
+      players foreach (_ ! SnapshotRequest(from))
+    }
+
+    def closeChannel(channel: ActorRef[Event]): Unit = {
+      closed += (channel -> true)
+    }
+
+    def allClosed: Boolean = {
+      closed forall (p => p._2)
+    }
+  }
 }
 
 object Actors {
@@ -119,9 +162,26 @@ object Actors {
         ctx.log.info(s"PLAYERS: ${p.toString()}")
         running(ctx, puzzle, p)
       case GameStateRequest(replyTo) =>
-        replyTo ! GameState(puzzle.state())
-        Behaviors.same
+        val state = PlayerState(players = players diff Set(ctx.self))
+        state.turnRed(ctx.self)
+        onCut(ctx, puzzle, players, state, Some(replyTo))
+      case SnapshotRequest(from) =>
+        val state = PlayerState(players = players diff Set(ctx.self))
+        state.turnRed(ctx.self)
+        state.closeChannel(from)
+        onCut(ctx, puzzle, players, state, Option.empty)
       case _ => running(ctx, puzzle, players)
+    }
+
+    def onCut(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]], state: PlayerState, replyTo: Option[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
+      case SnapshotRequest(from) =>
+        state.closeChannel(from)
+        if (state.allClosed) ctx.self ! CutCompleted(replyTo)
+        onCut(ctx, puzzle, players, state, replyTo)
+      case CutCompleted(replyTo) =>
+        if (replyTo.nonEmpty) replyTo.get ! GameState(puzzle.state())
+        running(ctx, puzzle, players)
+      case _ => onCut(ctx, puzzle, players, state, replyTo)
     }
   }
 
