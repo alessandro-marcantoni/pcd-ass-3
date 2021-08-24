@@ -8,47 +8,6 @@ import puzzle.actors.Cut.PlayerState
 import puzzle.actors.EventConversions._
 import puzzle.actors.Events._
 
-object Events {
-  sealed trait Event
-  sealed trait GameEvent extends Event {
-    def from: ActorRef[Event]
-  }
-  sealed trait RemoteGameEvent extends GameEvent
-  sealed trait LocalGameEvent extends GameEvent
-
-  case class ActorsUpdated(actors: Set[ActorRef[Event]]) extends Event with CborSerializable
-  case class Joined(player: ActorRef[Event]) extends Event with CborSerializable
-
-  case class GameStateRequest(replyTo: ActorRef[Event]) extends Event with CborSerializable
-  case class GameState(tiles: List[SerializableTile]) extends Event with CborSerializable
-
-  case class LocalTileSelected(tile: SerializableTile, override val from: ActorRef[Event]) extends LocalGameEvent with CborSerializable
-  case class RemoteTileSelected(tile: SerializableTile, override val from: ActorRef[Event]) extends RemoteGameEvent with CborSerializable
-
-  case class LocalPuzzleCompleted(override val from: ActorRef[Event]) extends LocalGameEvent with CborSerializable
-  case class RemotePuzzleCompleted(override val from: ActorRef[Event]) extends RemoteGameEvent with CborSerializable
-
-  case class SnapshotRequest(from: ActorRef[Event]) extends Event with CborSerializable
-  case class CutCompleted(replyTo: Option[ActorRef[Event]]) extends Event with CborSerializable
-}
-
-object EventConversions {
-  trait EventConverter[A] {
-    def toRemoteEvent(event: A): RemoteGameEvent
-  }
-
-  implicit val tileSelectedConverter: EventConverter[LocalTileSelected] = event => RemoteTileSelected(event.tile, event.from)
-  implicit val puzzleCompletedConverter: EventConverter[LocalPuzzleCompleted] = event => RemotePuzzleCompleted(event.from)
-  implicit val genericConverter: EventConverter[LocalGameEvent] = {
-    case e: LocalTileSelected => toRemoteEvent(e)
-    case e: LocalPuzzleCompleted => toRemoteEvent(e)
-  }
-
-  def toRemoteEvent[A](event: A)(implicit converter: EventConverter[A]): RemoteGameEvent =
-    converter.toRemoteEvent(event)
-
-}
-
 object Actors {
 
   object RootBehavior {
@@ -82,12 +41,10 @@ object Actors {
       ctx.system.receptionist ! Receptionist.Register(JoinerServiceKey, ctx.self)
       Behaviors.receiveMessage {
         case Joined(player) =>
-          ctx.log.info(s"JOINED ${ctx.self}")
           player ! GameStateRequest(ctx.self)
           Behaviors.same
         case GameState(tiles) =>
           ctx.system.receptionist ! Receptionist.Deregister(JoinerServiceKey, ctx.self)
-          //val newPlayer: ActorRef[Event] = ctx.spawn(Player(tiles, PuzzleBoard(ctx)), "player")
           ctx.spawn(Acceptor(ctx.self), "acceptor")
           Player(tiles, PuzzleBoard(ctx))
         case _ => Behaviors.same
@@ -114,7 +71,6 @@ object Actors {
 
     def running(player: ActorRef[Event], ctx: ActorContext[Event]): Behavior[Event] = Behaviors.receiveMessage {
       case ActorsUpdated(joiners) =>
-        ctx.log.info(s"JOINERS: ${joiners.toString()}")
         joiners foreach (_ ! Joined(player))
         running(player, ctx)
       case _ => running(player, ctx)
@@ -145,22 +101,22 @@ object Actors {
 
     def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
       case ActorsUpdated(p) =>
-        ctx.log.info(s"PLAYERS: ${p.toString()}")
         running(ctx, puzzle, p)
-      case GameStateRequest(replyTo) =>
-        if (players.size > 1) {
+      case GameStateRequest(replyTo) => players.size match {
+        case k if k > 1 =>
           val state = PlayerState(players = players diff Set(ctx.self))
           state.turnRed(ctx.self)
           onCut(ctx, puzzle, players, state, Some(replyTo))
-        } else {
+        case _ =>
           replyTo ! GameState(puzzle.state())
           running(ctx, puzzle, players)
-        }
+      }
       case SnapshotRequest(from) =>
         val state = PlayerState(players = players diff Set(ctx.self))
         state.turnRed(ctx.self)
         state.closeChannel(from)
-        onCut(ctx, puzzle, players, state, Option.empty)
+        if (state.allClosed) running(ctx, puzzle, players)
+        else onCut(ctx, puzzle, players, state, Option.empty)
       case event: LocalGameEvent =>
         (players diff Set(ctx.self)) foreach (_ ! toRemoteEvent(event))
         running(ctx, puzzle, players)
@@ -198,7 +154,6 @@ object Actors {
     def apply(): Behavior[Event] = Behaviors.setup { ctx =>
       val puzzle = PuzzleBoard(DistributedPuzzle.n, DistributedPuzzle.m, DistributedPuzzle.imagePath, ctx = ctx)
       puzzle.createTiles()
-      //val player: ActorRef[Event] = ctx.spawn(Player(puzzle.state(), puzzle), "player")
       ctx.spawn(Acceptor(ctx.self), "acceptor")
       Player(puzzle.state(), puzzle)
     }
