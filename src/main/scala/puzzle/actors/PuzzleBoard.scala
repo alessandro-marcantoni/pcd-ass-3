@@ -85,7 +85,6 @@ case class PuzzleBoard(rows: Int,
 
   def checkSolution(): Unit = if (tiles.forall(tile => tile.isInRightPlace))
     selectionManager ! LocalPuzzleCompleted(ctx.self)
-    //JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
 
   def state(): List[SerializableTile] = tiles.map(t => selectedTiles.find(e => e.currentPosition.equals(t.currentPosition)) match {
     case Some(tile) => SerializableTile(t.originalPosition, t.currentPosition, selected = true, tile.player)

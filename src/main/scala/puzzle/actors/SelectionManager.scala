@@ -20,31 +20,18 @@ object SelectionManager {
    * @param puzzle The instance of the puzzle game associated to this [[SelectionManager]].
    */
   def apply(puzzle: PuzzleBoard, player: ActorRef[Event]): Behavior[Event] = Behaviors.setup { ctx =>
-    /*ctx.system.receptionist ! Receptionist.Register(SelectionManagerServiceKey, ctx.self)
-    val subscriptionAdapter = ctx.messageAdapter[Receptionist.Listing] {
-      case SelectionManager.SelectionManagerServiceKey.Listing(players) => ActorsUpdated(players)
-    }
-    ctx.system.receptionist ! Receptionist.Subscribe(SelectionManager.SelectionManagerServiceKey, subscriptionAdapter)*/
     running(ctx, puzzle, player)
   }
 
   def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, player: ActorRef[Event]): Behavior[Event] = Behaviors.receiveMessage {
-    /*case ActorsUpdated(newManagers) =>
-      (managers diff newManagers) foreach (r => {
-        selectedTiles = selectedTiles diff selectedTiles.filter(t => t.player contains r)
-        puzzle.paintPuzzle()
-      })
-      running(ctx, puzzle, newManagers)*/
     case LocalTileSelected(tile, from) =>
       selectTile(tile, puzzle)
       player ! LocalTileSelected(tile, from)
-      //(managers diff Set(ctx.self)) foreach (_ ! RemoteTileSelected(tile))
       running(ctx, puzzle, player)
     case RemoteTileSelected(tile, _) =>
       selectTile(tile, puzzle)
       running(ctx, puzzle, player)
     case LocalPuzzleCompleted(from) =>
-      //(managers diff Set(ctx.self)) foreach (_ ! RemotePuzzleCompleted())
       player ! LocalPuzzleCompleted(from)
       JOptionPane.showMessageDialog(puzzle, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
       Behaviors.empty
