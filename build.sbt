@@ -32,4 +32,5 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.1.0" % Test,
   "org.apache.pdfbox" % "pdfbox" % "2.0.22",
   "org.scalafx" %% "scalafx" % "15.0.1-R21",
+  "org.wso2.orbit.javax.rmi" % "rmi" % "1.0.1.wso2v1"
 )
