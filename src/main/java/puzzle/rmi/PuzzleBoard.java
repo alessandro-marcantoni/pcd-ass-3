@@ -1,5 +1,7 @@
 package puzzle.rmi;
 
+import puzzle.rmi.remote.RemoteBoard;
+
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
@@ -15,41 +17,49 @@ import java.awt.image.CropImageFilter;
 import java.awt.image.FilteredImageSource;
 import java.io.File;
 import java.io.IOException;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class PuzzleBoard extends JFrame {
+public class PuzzleBoard extends JFrame implements Remote {
 	
 	final int rows, columns;
-	private final List<JTile> tiles = new ArrayList<>();
+	private List<JTile> tiles;
+	private RemoteBoard remoteBoard;
+	private final int id;
+
+    final JPanel board = new JPanel();
 	
-	private final JSelectionManager selectionManager = new JSelectionManager();
-	
-    public PuzzleBoard(final int rows, final int columns, final String imagePath) {
+    public PuzzleBoard(final int rows, final int columns, final int id) {
     	this.rows = rows;
 		this.columns = columns;
+		this.id = id;
     	
     	setTitle("Puzzle");
         setResizable(false);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
-        final JPanel board = new JPanel();
+
         board.setBorder(BorderFactory.createLineBorder(Color.gray));
         board.setLayout(new GridLayout(rows, columns, 0, 0));
         getContentPane().add(board, BorderLayout.CENTER);
         
-        createTiles(imagePath);
-        paintPuzzle(board);
+        //createTiles();
+        //paintPuzzle(board);
     }
 
+    public PuzzleBoard(final int id) {
+        this(DistributedPuzzle.ROWS, DistributedPuzzle.COLS, id);
+    }
     
-    private void createTiles(final String imagePath) {
+    public void createTiles(final List<SerializableTile> t) {
 		final BufferedImage image;
-        
         try {
-            image = ImageIO.read(new File(imagePath));
+            image = ImageIO.read(new File(DistributedPuzzle.IMAGE_PATH));
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Could not load image", "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -57,13 +67,21 @@ public class PuzzleBoard extends JFrame {
 
         final int imageWidth = image.getWidth(null);
         final int imageHeight = image.getHeight(null);
-
         int position = 0;
-        
-        final List<Integer> randomPositions = new ArrayList<>();
-        IntStream.range(0, rows*columns).forEach(randomPositions::add);
-        Collections.shuffle(randomPositions);
-        
+
+        final List<Integer> positions;
+        if (t.isEmpty()) {
+            positions = new ArrayList<>();
+            IntStream.range(0, rows*columns).forEach(positions::add);
+            Collections.shuffle(positions);
+        } else {
+            positions = t.stream()
+                    .sorted()
+                    .map(SerializableTile::getCurrentPosition)
+                    .collect(Collectors.toList());
+        }
+
+        tiles = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
             	final Image imagePortion = createImage(new FilteredImageSource(image.getSource(),
@@ -72,29 +90,58 @@ public class PuzzleBoard extends JFrame {
                         					(imageWidth / columns), 
                         					imageHeight / rows)));
 
-                tiles.add(new JTile(imagePortion, position, randomPositions.get(position)));
+                tiles.add(new JTile(imagePortion, position, positions.get(position)));
                 position++;
             }
         }
+        System.out.println(this.tiles.toString());
 	}
+
+	public List<JTile> getTiles() {
+        return List.copyOf(this.tiles);
+    }
     
-    private void paintPuzzle(final JPanel board) {
+    public void paintPuzzle() {
     	board.removeAll();
     	
     	Collections.sort(tiles);
     	
-    	tiles.forEach(JTile -> {
-    		final JTileButton btn = new JTileButton(JTile);
+    	tiles.forEach(t -> {
+    		final JTileButton btn = new JTileButton(t);
             board.add(btn);
             btn.setBorder(BorderFactory.createLineBorder(Color.gray));
-            btn.addActionListener(actionListener -> selectionManager.selectTile(JTile, () -> {
-                paintPuzzle(board);
-                checkSolution();
-            }));
+            btn.addActionListener(actionListener -> {
+                try {
+                    this.remoteBoard.select(
+                            new SerializableTile(
+                                    t.getOriginalPosition(),
+                                    t.getCurrentPosition(),
+                                    true,
+                                    this.id));
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            });
     	});
     	
     	pack();
-        setLocationRelativeTo(null);
+    	this.setVisible(true);
+        //setLocationRelativeTo(null);
+    }
+
+    public void setRemoteBoard(final RemoteBoard remoteBoard) {
+        this.remoteBoard = remoteBoard;
+    }
+
+    public void updateBoard(List<SerializableTile> newTiles) {
+        System.out.println(this.tiles.toString());
+        this.tiles.forEach(t -> t.setCurrentPosition(newTiles.stream()
+                        .filter(st -> st.getOriginalPosition() == t.getOriginalPosition())
+                        .collect(Collectors.toList())
+                        .get(0)
+                        .getCurrentPosition()));
+        paintPuzzle();
+        checkSolution();
     }
 
     private void checkSolution() {

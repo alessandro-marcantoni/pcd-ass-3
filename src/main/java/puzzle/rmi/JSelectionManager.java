@@ -1,11 +1,13 @@
 package puzzle.rmi;
 
+import java.rmi.RemoteException;
+
 public class JSelectionManager {
 
 	private boolean selectionActive = false;
 	private JTile selectedJTile;
 
-	public void selectTile(final JTile tile, final Listener listener) {
+	public void selectTile(final JTile tile, final Listener listener) throws RemoteException {
 		
 		if(selectionActive) {
 			selectionActive = false;
@@ -27,6 +29,6 @@ public class JSelectionManager {
 	
 	@FunctionalInterface
 	public interface Listener{
-		void onSwapPerformed();
+		void onSwapPerformed() throws RemoteException;
 	}
 }
