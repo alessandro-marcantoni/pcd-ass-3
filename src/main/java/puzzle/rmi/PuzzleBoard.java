@@ -44,9 +44,9 @@ public class PuzzleBoard extends JFrame implements Remote {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
 
-        board.setBorder(BorderFactory.createLineBorder(Color.gray));
-        board.setLayout(new GridLayout(rows, columns, 0, 0));
-        getContentPane().add(board, BorderLayout.CENTER);
+        this.board.setBorder(BorderFactory.createLineBorder(Color.gray));
+        this.board.setLayout(new GridLayout(rows, columns, 0, 0));
+        getContentPane().add(this.board, BorderLayout.CENTER);
         
         //createTiles();
         //paintPuzzle(board);
@@ -81,7 +81,7 @@ public class PuzzleBoard extends JFrame implements Remote {
                     .collect(Collectors.toList());
         }
 
-        tiles = new ArrayList<>();
+        this.tiles = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
             	final Image imagePortion = createImage(new FilteredImageSource(image.getSource(),
@@ -90,11 +90,10 @@ public class PuzzleBoard extends JFrame implements Remote {
                         					(imageWidth / columns), 
                         					imageHeight / rows)));
 
-                tiles.add(new JTile(imagePortion, position, positions.get(position)));
+                this.tiles.add(new JTile(imagePortion, position, positions.get(position)));
                 position++;
             }
         }
-        System.out.println(this.tiles.toString());
 	}
 
 	public List<JTile> getTiles() {
@@ -102,11 +101,11 @@ public class PuzzleBoard extends JFrame implements Remote {
     }
     
     public void paintPuzzle() {
-    	board.removeAll();
+    	this.board.removeAll();
     	
-    	Collections.sort(tiles);
+    	Collections.sort(this.tiles);
     	
-    	tiles.forEach(t -> {
+    	this.tiles.forEach(t -> {
     		final JTileButton btn = new JTileButton(t);
             board.add(btn);
             btn.setBorder(BorderFactory.createLineBorder(Color.gray));
@@ -134,7 +133,6 @@ public class PuzzleBoard extends JFrame implements Remote {
     }
 
     public void updateBoard(List<SerializableTile> newTiles) {
-        System.out.println(this.tiles.toString());
         this.tiles.forEach(t -> t.setCurrentPosition(newTiles.stream()
                         .filter(st -> st.getOriginalPosition() == t.getOriginalPosition())
                         .collect(Collectors.toList())
@@ -145,7 +143,7 @@ public class PuzzleBoard extends JFrame implements Remote {
     }
 
     private void checkSolution() {
-    	if(tiles.stream().allMatch(JTile::isInRightPlace)) {
+    	if(this.tiles.stream().allMatch(JTile::isInRightPlace)) {
     		JOptionPane.showMessageDialog(this, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE);
     	}
     }
