@@ -1,7 +1,5 @@
 package puzzle.rmi;
 
-import puzzle.rmi.remote.RemoteBoard;
-
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
@@ -28,32 +26,31 @@ import java.util.stream.IntStream;
 public class PuzzleBoard extends JFrame implements Remote {
 	
 	final int rows, columns;
-	private List<JTile> tiles;
-	private RemoteBoard remoteBoard;
-	private final int id;
+	private List<JTile> tiles = new ArrayList<>();
+	private final GameManager gameManager;
 
     final JPanel board = new JPanel();
 	
-    public PuzzleBoard(final int rows, final int columns, final int id) {
+    public PuzzleBoard(final int rows, final int columns, GameManager gameManager) throws RemoteException {
     	this.rows = rows;
 		this.columns = columns;
-		this.id = id;
+		this.gameManager = gameManager;
     	
     	setTitle("Puzzle");
         setResizable(false);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        
 
-        board.setBorder(BorderFactory.createLineBorder(Color.gray));
-        board.setLayout(new GridLayout(rows, columns, 0, 0));
-        getContentPane().add(board, BorderLayout.CENTER);
+        this.board.setBorder(BorderFactory.createLineBorder(Color.gray));
+        this.board.setLayout(new GridLayout(rows, columns, 0, 0));
+        getContentPane().add(this.board, BorderLayout.CENTER);
         
-        //createTiles();
-        //paintPuzzle(board);
+        this.createTiles(this.gameManager.getId() == DistributedPuzzle.REGISTRY_PORT ?
+                List.of() :
+                this.gameManager.getRemoteTiles());
     }
 
-    public PuzzleBoard(final int id) {
-        this(DistributedPuzzle.ROWS, DistributedPuzzle.COLS, id);
+    public PuzzleBoard(GameManager gameManager) throws RemoteException {
+        this(DistributedPuzzle.ROWS, DistributedPuzzle.COLS, gameManager);
     }
     
     public void createTiles(final List<SerializableTile> t) {
@@ -94,7 +91,7 @@ public class PuzzleBoard extends JFrame implements Remote {
                 position++;
             }
         }
-        System.out.println(this.tiles.toString());
+        this.paintPuzzle();
 	}
 
 	public List<JTile> getTiles() {
@@ -110,27 +107,16 @@ public class PuzzleBoard extends JFrame implements Remote {
     		final JTileButton btn = new JTileButton(t);
             board.add(btn);
             btn.setBorder(BorderFactory.createLineBorder(Color.gray));
-            btn.addActionListener(actionListener -> {
-                try {
-                    this.remoteBoard.select(
-                            new SerializableTile(
-                                    t.getOriginalPosition(),
-                                    t.getCurrentPosition(),
-                                    true,
-                                    this.id));
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
-            });
+            btn.addActionListener(actionListener -> this.gameManager.select(new SerializableTile(
+                            t.getOriginalPosition(),
+                            t.getCurrentPosition(),
+                            true,
+                            this.gameManager.getId())));
     	});
     	
     	pack();
     	this.setVisible(true);
         //setLocationRelativeTo(null);
-    }
-
-    public void setRemoteBoard(final RemoteBoard remoteBoard) {
-        this.remoteBoard = remoteBoard;
     }
 
     public void updateBoard(List<SerializableTile> newTiles) {

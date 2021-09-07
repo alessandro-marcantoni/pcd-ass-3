@@ -10,6 +10,8 @@ public interface RemoteBoard extends Remote {
 
     void select(SerializableTile tile) throws RemoteException;
 
+    void setTiles(List<SerializableTile> tiles) throws RemoteException;
+
     void addObserver(BoardObserver observer) throws RemoteException;
 
     List<SerializableTile> getTiles() throws RemoteException;

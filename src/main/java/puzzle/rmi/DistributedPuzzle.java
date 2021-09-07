@@ -1,7 +1,5 @@
 package puzzle.rmi;
 
-import puzzle.rmi.remote.BoardObserver;
-import puzzle.rmi.remote.BoardObserverImpl;
 import puzzle.rmi.remote.RemoteBoard;
 import puzzle.rmi.remote.RemoteBoardImpl;
 
@@ -23,18 +21,13 @@ public class DistributedPuzzle {
 		if (args.length > 0) {
 			LocateRegistry.createRegistry(REGISTRY_PORT);
 
-			// CREATE AND PUBLISH REMOTE BOARD
-			PuzzleBoard puzzle = new PuzzleBoard(REGISTRY_PORT);
-			BoardObserver observer = new BoardObserverImpl(puzzle);
-			RemoteBoard board = new RemoteBoardImpl(puzzle);
-			board.addObserver(observer);
+			RemoteBoard board = new RemoteBoardImpl();
 			RemoteBoard boardStub = (RemoteBoard) UnicastRemoteObject.exportObject(board, 0);
 
 			Registry registry = LocateRegistry.getRegistry(REGISTRY_PORT);
 			registry.rebind("remoteBoard", boardStub);
 
-			puzzle.setRemoteBoard(board);
-			puzzle.paintPuzzle();
+			new GameManager(REGISTRY_PORT, board);
 		} else {
 			Registry registry = LocateRegistry.getRegistry(REGISTRY_PORT);
 
@@ -47,12 +40,9 @@ public class DistributedPuzzle {
 			LocateRegistry.getRegistry(port).rebind("remoteBoard", remoteBoardStub);
 			RemoteBoard myBoard = (RemoteBoard) LocateRegistry.getRegistry(port).lookup("remoteBoard");
 
-			PuzzleBoard puzzle = new PuzzleBoard(port);
-			BoardObserver observer = new BoardObserverImpl(puzzle);
-			myBoard.addObserver(observer);
-			puzzle.createTiles(myBoard.getTiles());
-			puzzle.setRemoteBoard(myBoard);
-			puzzle.paintPuzzle();
+			System.out.println(myBoard.getTiles().toString());
+
+			new GameManager(port, myBoard);
 		}
 	}
 }

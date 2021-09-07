@@ -1,6 +1,6 @@
 package puzzle.rmi.remote;
 
-import puzzle.rmi.PuzzleBoard;
+import puzzle.rmi.GameManager;
 import puzzle.rmi.SerializableTile;
 
 import java.rmi.RemoteException;
@@ -8,15 +8,15 @@ import java.util.List;
 
 public class BoardObserverImpl implements BoardObserver {
 
-    private final PuzzleBoard puzzleBoard;
+    private final GameManager gameManager;
 
-    public BoardObserverImpl(final PuzzleBoard puzzleBoard) {
-        this.puzzleBoard = puzzleBoard;
+    public BoardObserverImpl(final GameManager gameManager) {
+        this.gameManager = gameManager;
     }
 
     @Override
     public void update(List<SerializableTile> tiles) throws RemoteException {
-        this.puzzleBoard.updateBoard(tiles);
+        this.gameManager.update(tiles);
     }
 
 }

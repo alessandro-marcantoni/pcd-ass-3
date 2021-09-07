@@ -1,7 +1,5 @@
 package puzzle.rmi.remote;
 
-import puzzle.rmi.JTile;
-import puzzle.rmi.PuzzleBoard;
 import puzzle.rmi.SerializableTile;
 
 import java.rmi.RemoteException;
@@ -13,15 +11,13 @@ import java.util.stream.Collectors;
 
 public class RemoteBoardImpl implements RemoteBoard {
 
-    private final List<SerializableTile> tiles;
+    private List<SerializableTile> tiles;
     private final AtomicInteger id = new AtomicInteger(0);
     private final List<BoardObserver> observers = new ArrayList<>();
 
-    public RemoteBoardImpl(final PuzzleBoard puzzleBoard) {
-        puzzleBoard.createTiles(List.of());
-        this.tiles = puzzleBoard.getTiles().stream()
-                .map(SerializableTile::new)
-                .collect(Collectors.toList());
+    @Override
+    public void setTiles(List<SerializableTile> tiles) throws RemoteException {
+        this.tiles = tiles;
     }
 
     @Override
