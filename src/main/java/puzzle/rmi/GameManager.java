@@ -5,6 +5,7 @@ import puzzle.rmi.remote.BoardObserverImpl;
 import puzzle.rmi.remote.RemoteBoard;
 
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,7 +20,9 @@ public class GameManager {
         this.id = id;
         this.remoteBoard = remoteBoard;
         this.puzzle = new PuzzleBoard(this);
+
         this.observer = new BoardObserverImpl(this);
+        UnicastRemoteObject.exportObject(this.observer, 0);
         this.remoteBoard.addObserver(this.observer);
 
         if (this.id == DistributedPuzzle.REGISTRY_PORT) {
