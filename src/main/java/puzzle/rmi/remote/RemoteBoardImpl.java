@@ -23,19 +23,19 @@ public class RemoteBoardImpl implements RemoteBoard {
     @Override
     public void select(SerializableTile tile) throws RemoteException {
         if (tile.getPlayer().isPresent() && playerHasAlreadySelected(tile.getPlayer().get())) {
-            SerializableTile first = tiles.stream()
+            SerializableTile first = this.tiles.stream()
                     .filter(t -> t.getPlayer().isPresent())
                     .filter(t -> t.getPlayer().get().equals(tile.getPlayer().get()))
                     .collect(Collectors.toList())
                     .get(0);
-            SerializableTile second = tiles.stream()
+            SerializableTile second = this.tiles.stream()
                     .filter(t -> t.getCurrentPosition() == tile.getCurrentPosition())
                     .collect(Collectors.toList())
                     .get(0);
             first.deselect();
             swap(first, second);
         } else {
-            tiles.stream()
+            this.tiles.stream()
                     .filter(t -> t.getCurrentPosition() == tile.getCurrentPosition())
                     .collect(Collectors.toList())
                     .get(0)
@@ -68,7 +68,7 @@ public class RemoteBoardImpl implements RemoteBoard {
 
     @Override
     public int nextId() throws RemoteException {
-        return id.incrementAndGet();
+        return this.id.incrementAndGet();
     }
 
     private boolean playerHasAlreadySelected(final int player) {
