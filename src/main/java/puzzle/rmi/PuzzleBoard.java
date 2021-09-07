@@ -28,7 +28,7 @@ import java.util.stream.IntStream;
 public class PuzzleBoard extends JFrame implements Remote {
 	
 	final int rows, columns;
-	private List<JTile> tiles;
+	private List<JTile> tiles = new ArrayList<>();
 	private RemoteBoard remoteBoard;
 	private final int id;
 
@@ -81,7 +81,7 @@ public class PuzzleBoard extends JFrame implements Remote {
                     .collect(Collectors.toList());
         }
 
-        this.tiles = new ArrayList<>();
+        //this.tiles = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
             	final Image imagePortion = createImage(new FilteredImageSource(image.getSource(),
