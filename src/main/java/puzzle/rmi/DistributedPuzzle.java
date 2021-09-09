@@ -40,8 +40,6 @@ public class DistributedPuzzle {
 			LocateRegistry.getRegistry(port).rebind("remoteBoard", remoteBoardStub);
 			RemoteBoard myBoard = (RemoteBoard) LocateRegistry.getRegistry(port).lookup("remoteBoard");
 
-			System.out.println(myBoard.getTiles().toString());
-
 			new GameManager(port, myBoard);
 		}
 	}

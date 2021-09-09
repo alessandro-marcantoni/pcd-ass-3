@@ -11,7 +11,6 @@ import java.util.stream.Collectors;
 
 public class GameManager {
 
-    private final BoardObserver observer;
     private final PuzzleBoard puzzle;
     private final RemoteBoard remoteBoard;
     private final int id;
@@ -21,9 +20,9 @@ public class GameManager {
         this.remoteBoard = remoteBoard;
         this.puzzle = new PuzzleBoard(this);
 
-        this.observer = new BoardObserverImpl(this);
-        UnicastRemoteObject.exportObject(this.observer, 0);
-        this.remoteBoard.addObserver(this.observer);
+        final BoardObserver observer = new BoardObserverImpl(this);
+        UnicastRemoteObject.exportObject(observer, 0);
+        this.remoteBoard.addObserver(observer);
 
         if (this.id == DistributedPuzzle.REGISTRY_PORT) {
             this.remoteBoard.setTiles(this.puzzle.getTiles().stream().map(SerializableTile::new).collect(Collectors.toList()));
