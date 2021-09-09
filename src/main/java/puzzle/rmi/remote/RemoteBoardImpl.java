@@ -1,6 +1,5 @@
 package puzzle.rmi.remote;
 
-import puzzle.rmi.DistributedPuzzle;
 import puzzle.rmi.SerializableTile;
 
 import java.rmi.RemoteException;
@@ -22,8 +21,8 @@ public class RemoteBoardImpl implements RemoteBoard {
     }
 
     @Override
-    public void select(SerializableTile tile, List<SerializableTile> selected) throws RemoteException {
-        if(selected.stream().noneMatch(t -> t.getCurrentPosition() == tile.getCurrentPosition())) {
+    public void select(SerializableTile tile) throws RemoteException {
+        if (!isSelectedByOther(tile)) {
             if (tile.getPlayer().isPresent() && playerHasAlreadySelected(tile.getPlayer().get())) {
                 SerializableTile first = this.tiles.stream()
                         .filter(t -> t.getPlayer().isPresent())
@@ -42,16 +41,6 @@ public class RemoteBoardImpl implements RemoteBoard {
                         .collect(Collectors.toList())
                         .get(0)
                         .select(tile.getPlayer().get());
-            }
-        } else {
-            if(tile.getPlayer().get() == (this.id.get() + DistributedPuzzle.REGISTRY_PORT)) {
-                this.tiles.stream()
-                        .filter(t -> t.getPlayer().isPresent())
-                        .filter(t -> t.getPlayer().get().equals(tile.getPlayer().get()))
-                        .filter(t -> t.getCurrentPosition() == tile.getCurrentPosition())
-                        .collect(Collectors.toList())
-                        .get(0)
-                        .deselect();
             }
         }
 
@@ -89,6 +78,14 @@ public class RemoteBoardImpl implements RemoteBoard {
                 .filter(SerializableTile::isSelected)
                 .filter(t -> t.getPlayer().isPresent())
                 .anyMatch(t -> t.getPlayer().get().equals(player));
+    }
+
+    private boolean isSelectedByOther(final SerializableTile tile) {
+        return this.tiles.stream()
+                .filter(t -> t.getOriginalPosition() == tile.getOriginalPosition())
+                .collect(Collectors.toList())
+                .get(0)
+                .isSelected();
     }
 
     private void swap(final SerializableTile t1, final SerializableTile t2) {

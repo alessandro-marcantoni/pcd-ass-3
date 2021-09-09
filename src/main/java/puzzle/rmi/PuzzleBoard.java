@@ -77,7 +77,6 @@ public class PuzzleBoard extends JFrame implements Remote {
                     .collect(Collectors.toList());
         }
 
-        //this.tiles = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
             	final Image imagePortion = createImage(new FilteredImageSource(image.getSource(),
@@ -90,14 +89,15 @@ public class PuzzleBoard extends JFrame implements Remote {
                 position++;
             }
         }
-        this.paintPuzzle();
+
+        this.paintPuzzle(t.stream().filter(SerializableTile::isSelected).collect(Collectors.toList()));
 	}
 
 	public List<JTile> getTiles() {
         return List.copyOf(this.tiles);
     }
     
-    public void paintPuzzle() {
+    public void paintPuzzle(List<SerializableTile> selectedTiles) {
     	this.board.removeAll();
     	
     	Collections.sort(this.tiles);
@@ -105,11 +105,12 @@ public class PuzzleBoard extends JFrame implements Remote {
     	this.tiles.forEach(t -> {
     		final JTileButton btn = new JTileButton(t);
             board.add(btn);
-            if(this.gameManager.getSelectedTiles().stream().anyMatch(tile -> tile.getCurrentPosition() == t.getCurrentPosition())){
-                btn.setBorder(BorderFactory.createLineBorder(Color.red));
+            if(selectedTiles.stream().anyMatch(tile -> tile.getCurrentPosition() == t.getCurrentPosition())){
+                btn.setBorder(BorderFactory.createLineBorder(Color.red, 2));
             } else {
-                btn.setBorder(BorderFactory.createLineBorder(Color.gray));
+                btn.setBorder(BorderFactory.createLineBorder(Color.gray, 2));
             }
+
             btn.addActionListener(actionListener -> this.gameManager.select(new SerializableTile(
                             t.getOriginalPosition(),
                             t.getCurrentPosition(),
@@ -123,13 +124,12 @@ public class PuzzleBoard extends JFrame implements Remote {
     }
 
     public void updateBoard(List<SerializableTile> newTiles) {
-        //System.out.println(gameManager.getSelectedTiles());
         this.tiles.forEach(t -> t.setCurrentPosition(newTiles.stream()
                         .filter(st -> st.getOriginalPosition() == t.getOriginalPosition())
                         .collect(Collectors.toList())
                         .get(0)
                         .getCurrentPosition()));
-        paintPuzzle();
+        paintPuzzle(newTiles.stream().filter(SerializableTile::isSelected).collect(Collectors.toList()));
         checkSolution();
     }
 

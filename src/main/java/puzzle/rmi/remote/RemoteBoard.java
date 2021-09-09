@@ -2,14 +2,13 @@ package puzzle.rmi.remote;
 
 import puzzle.rmi.SerializableTile;
 
-import java.io.Serial;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
 public interface RemoteBoard extends Remote {
 
-    void select(SerializableTile tile, List<SerializableTile> selectedTiles) throws RemoteException;
+    void select(SerializableTile tile) throws RemoteException;
 
     void setTiles(List<SerializableTile> tiles) throws RemoteException;
 
