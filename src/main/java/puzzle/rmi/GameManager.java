@@ -15,11 +15,14 @@ public class GameManager {
     private final PuzzleBoard puzzle;
     private final RemoteBoard remoteBoard;
     private final int id;
-    private List<SerializableTile> selectedTiles = new ArrayList<>();
+    private List<SerializableTile> selectedTiles;
 
     public GameManager(int id, RemoteBoard remoteBoard) throws RemoteException {
         this.id = id;
         this.remoteBoard = remoteBoard;
+        this.selectedTiles = this.id == DistributedPuzzle.REGISTRY_PORT ?
+                new ArrayList<>() :
+                this.remoteBoard.getTiles().stream().filter(SerializableTile::isSelected).collect(Collectors.toList());
         this.puzzle = new PuzzleBoard(this);
 
         final BoardObserver observer = new BoardObserverImpl(this);
@@ -49,7 +52,7 @@ public class GameManager {
     }
 
     public List<SerializableTile> getRemoteTiles() throws RemoteException {
-        return this.remoteBoard.getTiles();
+        return List.copyOf(this.remoteBoard.getTiles());
     }
 
     public List<SerializableTile> getSelectedTiles() {
