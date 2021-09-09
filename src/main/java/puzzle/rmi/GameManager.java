@@ -6,6 +6,7 @@ import puzzle.rmi.remote.RemoteBoard;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,6 +15,7 @@ public class GameManager {
     private final PuzzleBoard puzzle;
     private final RemoteBoard remoteBoard;
     private final int id;
+    private List<SerializableTile> selectedTiles = new ArrayList<>();
 
     public GameManager(int id, RemoteBoard remoteBoard) throws RemoteException {
         this.id = id;
@@ -30,6 +32,7 @@ public class GameManager {
     }
 
     public void update(final List<SerializableTile> tiles) {
+        this.selectedTiles = tiles.stream().filter(SerializableTile::isSelected).collect(Collectors.toList());
         this.puzzle.updateBoard(tiles);
     }
 
@@ -39,7 +42,7 @@ public class GameManager {
 
     public void select(SerializableTile tile) {
         try {
-            this.remoteBoard.select(tile);
+            this.remoteBoard.select(tile, selectedTiles);
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -47,5 +50,9 @@ public class GameManager {
 
     public List<SerializableTile> getRemoteTiles() throws RemoteException {
         return this.remoteBoard.getTiles();
+    }
+
+    public List<SerializableTile> getSelectedTiles() {
+        return List.copyOf(this.selectedTiles);
     }
 }

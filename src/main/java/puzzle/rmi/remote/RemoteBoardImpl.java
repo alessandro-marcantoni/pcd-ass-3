@@ -21,25 +21,27 @@ public class RemoteBoardImpl implements RemoteBoard {
     }
 
     @Override
-    public void select(SerializableTile tile) throws RemoteException {
-        if (tile.getPlayer().isPresent() && playerHasAlreadySelected(tile.getPlayer().get())) {
-            SerializableTile first = this.tiles.stream()
-                    .filter(t -> t.getPlayer().isPresent())
-                    .filter(t -> t.getPlayer().get().equals(tile.getPlayer().get()))
-                    .collect(Collectors.toList())
-                    .get(0);
-            SerializableTile second = this.tiles.stream()
-                    .filter(t -> t.getCurrentPosition() == tile.getCurrentPosition())
-                    .collect(Collectors.toList())
-                    .get(0);
-            first.deselect();
-            swap(first, second);
-        } else {
-            this.tiles.stream()
-                    .filter(t -> t.getCurrentPosition() == tile.getCurrentPosition())
-                    .collect(Collectors.toList())
-                    .get(0)
-                    .select(tile.getPlayer().get());
+    public void select(SerializableTile tile, List<SerializableTile> selected) throws RemoteException {
+        if(selected.stream().noneMatch(t -> t.getCurrentPosition() == tile.getCurrentPosition())) {
+            if (tile.getPlayer().isPresent() && playerHasAlreadySelected(tile.getPlayer().get())) {
+                SerializableTile first = this.tiles.stream()
+                        .filter(t -> t.getPlayer().isPresent())
+                        .filter(t -> t.getPlayer().get().equals(tile.getPlayer().get()))
+                        .collect(Collectors.toList())
+                        .get(0);
+                SerializableTile second = this.tiles.stream()
+                        .filter(t -> t.getCurrentPosition() == tile.getCurrentPosition())
+                        .collect(Collectors.toList())
+                        .get(0);
+                first.deselect();
+                swap(first, second);
+            } else {
+                this.tiles.stream()
+                        .filter(t -> t.getCurrentPosition() == tile.getCurrentPosition())
+                        .collect(Collectors.toList())
+                        .get(0)
+                        .select(tile.getPlayer().get());
+            }
         }
 
         Collections.sort(this.tiles);

@@ -105,7 +105,11 @@ public class PuzzleBoard extends JFrame implements Remote {
     	this.tiles.forEach(t -> {
     		final JTileButton btn = new JTileButton(t);
             board.add(btn);
-            btn.setBorder(BorderFactory.createLineBorder(Color.gray));
+            if(this.gameManager.getSelectedTiles().stream().anyMatch(tile -> tile.getCurrentPosition() == t.getCurrentPosition())){
+                btn.setBorder(BorderFactory.createLineBorder(Color.red));
+            } else {
+                btn.setBorder(BorderFactory.createLineBorder(Color.gray));
+            }
             btn.addActionListener(actionListener -> this.gameManager.select(new SerializableTile(
                             t.getOriginalPosition(),
                             t.getCurrentPosition(),
@@ -119,6 +123,7 @@ public class PuzzleBoard extends JFrame implements Remote {
     }
 
     public void updateBoard(List<SerializableTile> newTiles) {
+        System.out.println(gameManager.getSelectedTiles());
         this.tiles.forEach(t -> t.setCurrentPosition(newTiles.stream()
                         .filter(st -> st.getOriginalPosition() == t.getOriginalPosition())
                         .collect(Collectors.toList())
