@@ -123,7 +123,7 @@ public class PuzzleBoard extends JFrame implements Remote {
     }
 
     public void updateBoard(List<SerializableTile> newTiles) {
-        System.out.println(gameManager.getSelectedTiles());
+        //System.out.println(gameManager.getSelectedTiles());
         this.tiles.forEach(t -> t.setCurrentPosition(newTiles.stream()
                         .filter(st -> st.getOriginalPosition() == t.getOriginalPosition())
                         .collect(Collectors.toList())

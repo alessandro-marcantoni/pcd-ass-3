@@ -1,5 +1,6 @@
 package puzzle.rmi.remote;
 
+import puzzle.rmi.DistributedPuzzle;
 import puzzle.rmi.SerializableTile;
 
 import java.rmi.RemoteException;
@@ -41,6 +42,16 @@ public class RemoteBoardImpl implements RemoteBoard {
                         .collect(Collectors.toList())
                         .get(0)
                         .select(tile.getPlayer().get());
+            }
+        } else {
+            if(tile.getPlayer().get() == (this.id.get() + DistributedPuzzle.REGISTRY_PORT)) {
+                this.tiles.stream()
+                        .filter(t -> t.getPlayer().isPresent())
+                        .filter(t -> t.getPlayer().get().equals(tile.getPlayer().get()))
+                        .filter(t -> t.getCurrentPosition() == tile.getCurrentPosition())
+                        .collect(Collectors.toList())
+                        .get(0)
+                        .deselect();
             }
         }
 
