@@ -2,7 +2,7 @@ package puzzle.actors
 
 import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import puzzle.actors.Events._
 
 import javax.swing.JOptionPane
@@ -20,25 +20,29 @@ object SelectionManager {
    * @param puzzle The instance of the puzzle game associated to this [[SelectionManager]].
    */
   def apply(puzzle: PuzzleBoard, player: ActorRef[Event]): Behavior[Event] = Behaviors.setup { ctx =>
-    running(ctx, puzzle, player)
+    //running(ctx, puzzle, player)
+    Behaviors.supervise(running(ctx, puzzle, player)).onFailure(SupervisorStrategy.restart)
   }
 
-  def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, player: ActorRef[Event]): Behavior[Event] = Behaviors.receiveMessage {
-    case LocalTileSelected(tile, from) =>
-      selectTile(tile, puzzle)
-      player ! LocalTileSelected(tile, from)
-      running(ctx, puzzle, player)
-    case RemoteTileSelected(tile, _) =>
-      selectTile(tile, puzzle)
-      running(ctx, puzzle, player)
-    case LocalPuzzleCompleted(from) =>
-      player ! LocalPuzzleCompleted(from)
-      JOptionPane.showMessageDialog(puzzle, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
-      Behaviors.empty
-    case RemotePuzzleCompleted(_) =>
-      JOptionPane.showMessageDialog(puzzle, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
-      Behaviors.empty
-    case _ => running(ctx, puzzle, player)
+  def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, player: ActorRef[Event]): Behavior[Event] = {
+    val run: Behavior[Event] = Behaviors.receiveMessage {
+      case LocalTileSelected(tile, from) =>
+        selectTile(tile, puzzle)
+        player ! LocalTileSelected(tile, from)
+        running(ctx, puzzle, player)
+      case RemoteTileSelected(tile, _) =>
+        selectTile(tile, puzzle)
+        running(ctx, puzzle, player)
+      case LocalPuzzleCompleted(from) =>
+        player ! LocalPuzzleCompleted(from)
+        JOptionPane.showMessageDialog(puzzle, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
+        Behaviors.empty
+      case RemotePuzzleCompleted(_) =>
+        JOptionPane.showMessageDialog(puzzle, "Puzzle Completed!", "", JOptionPane.INFORMATION_MESSAGE)
+        Behaviors.empty
+      case _ => running(ctx, puzzle, player)
+    }
+    Behaviors.supervise(run).onFailure(SupervisorStrategy.restart)
   }
 
   private def selectTile(tile: SerializableTile, puzzle: PuzzleBoard): Unit = if (!selectedTiles.exists(t => t.currentPosition.equals(tile.currentPosition))) {

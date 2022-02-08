@@ -19,4 +19,9 @@ public class BoardObserverImpl implements BoardObserver {
         this.gameManager.update(tiles);
     }
 
+    @Override
+    public void check() throws RemoteException {
+        this.gameManager.getId();
+    }
+
 }

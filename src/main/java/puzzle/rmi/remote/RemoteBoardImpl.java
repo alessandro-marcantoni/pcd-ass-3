@@ -6,6 +6,7 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -45,6 +46,7 @@ public class RemoteBoardImpl implements RemoteBoard {
         }
 
         Collections.sort(this.tiles);
+        this.checkFailureObservers();
         this.updateObservers();
     }
 
@@ -92,5 +94,22 @@ public class RemoteBoardImpl implements RemoteBoard {
         int pos = t1.getCurrentPosition();
         t1.setCurrentPosition(t2.getCurrentPosition());
         t2.setCurrentPosition(pos);
+    }
+
+    private void checkFailureObservers() {
+        final List<BoardObserver> toRemove = new ArrayList<>();
+        for (BoardObserver observer : this.observers) {
+            try {
+                observer.check();
+            } catch (RemoteException e) {
+                toRemove.add(observer);
+            }
+        }
+        for (BoardObserver obs : toRemove) {
+            int index = observers.indexOf(obs);
+            Optional<SerializableTile> deselect = tiles.stream().filter(tile -> tile.getPlayer().orElse(index) == index).findFirst();
+            deselect.ifPresent(SerializableTile::deselect);
+        }
+        toRemove.forEach(observers::remove);
     }
 }

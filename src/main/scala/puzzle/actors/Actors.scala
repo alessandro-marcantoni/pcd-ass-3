@@ -2,7 +2,7 @@ package puzzle.actors
 
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.cluster.typed.Cluster
 import puzzle.actors.Cut.PlayerState
 import puzzle.actors.EventConversions._
@@ -72,8 +72,9 @@ object Actors {
     def running(player: ActorRef[Event], ctx: ActorContext[Event]): Behavior[Event] = Behaviors.receiveMessage {
       case ActorsUpdated(joiners) =>
         joiners foreach (_ ! Joined(player))
-        running(player, ctx)
-      case _ => running(player, ctx)
+        //running(player, ctx)
+        Behaviors.supervise(running(player, ctx)).onFailure(SupervisorStrategy.restart)
+      case _ => Behaviors.supervise(running(player, ctx)).onFailure(SupervisorStrategy.restart)//running(player, ctx)
     }
   }
 
@@ -96,54 +97,61 @@ object Actors {
       puzzle.createTiles(Some(tiles))
       puzzle.paintPuzzle()
       puzzle.setVisible(true)
-      running(ctx, puzzle, Set())
+      //running(ctx, puzzle, Set())
+      Behaviors.supervise(running(ctx, puzzle, Set())).onFailure(SupervisorStrategy.restart)
     }
 
-    def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
-      case ActorsUpdated(p) =>
-        running(ctx, puzzle, p)
-      case GameStateRequest(replyTo) => players.size match {
-        case k if k > 1 =>
+    def running(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]]): Behavior[Event] = {
+      val run: Behavior[Event] = Behaviors.receiveMessage {
+        case ActorsUpdated(p) =>
+          running(ctx, puzzle, p)
+        case GameStateRequest(replyTo) => players.size match {
+          case k if k > 1 =>
+            val state = PlayerState(players = players diff Set(ctx.self))
+            state.turnRed(ctx.self)
+            onCut(ctx, puzzle, players, state, Some(replyTo))
+          case _ =>
+            replyTo ! GameState(puzzle.state())
+            running(ctx, puzzle, players)
+        }
+        case SnapshotRequest(from) =>
           val state = PlayerState(players = players diff Set(ctx.self))
           state.turnRed(ctx.self)
-          onCut(ctx, puzzle, players, state, Some(replyTo))
-        case _ =>
-          replyTo ! GameState(puzzle.state())
+          state.closeChannel(from)
+          if (state.allClosed) running(ctx, puzzle, players)
+          else onCut(ctx, puzzle, players, state, Option.empty)
+        case event: LocalGameEvent =>
+          (players diff Set(ctx.self)) foreach (_ ! toRemoteEvent(event))
           running(ctx, puzzle, players)
+        case event: RemoteGameEvent =>
+          puzzle.selectionManager ! event
+          running(ctx, puzzle, players)
+        case _ => running(ctx, puzzle, players)
       }
-      case SnapshotRequest(from) =>
-        val state = PlayerState(players = players diff Set(ctx.self))
-        state.turnRed(ctx.self)
-        state.closeChannel(from)
-        if (state.allClosed) running(ctx, puzzle, players)
-        else onCut(ctx, puzzle, players, state, Option.empty)
-      case event: LocalGameEvent =>
-        (players diff Set(ctx.self)) foreach (_ ! toRemoteEvent(event))
-        running(ctx, puzzle, players)
-      case event: RemoteGameEvent =>
-        puzzle.selectionManager ! event
-        running(ctx, puzzle, players)
-      case _ => running(ctx, puzzle, players)
+      Behaviors.supervise(run).onFailure(SupervisorStrategy.restart)
     }
 
-    def onCut(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]], state: PlayerState, replyTo: Option[ActorRef[Event]]): Behavior[Event] = Behaviors.receiveMessage {
-      case ActorsUpdated(p) =>
-        state.enqueue(ActorsUpdated(p))
-        onCut(ctx, puzzle, players, state, replyTo)
-      case GameStateRequest(from) =>
-        if (state.notClosed(from)) state.enqueue(GameStateRequest(from))
-        onCut(ctx, puzzle, players, state, replyTo)
-      case SnapshotRequest(from) =>
-        state.closeChannel(from)
-        if (state.allClosed) ctx.self ! CutCompleted(replyTo)
-        onCut(ctx, puzzle, players, state, replyTo)
-      case event: GameEvent =>
-        if (state.notClosed(event.from)) state.enqueue(event)
-        onCut(ctx, puzzle, players, state, replyTo)
-      case CutCompleted(replyTo) =>
-        if (replyTo.nonEmpty) replyTo.get ! GameState(puzzle.state())
-        running(ctx, puzzle, players)
-      case _ => onCut(ctx, puzzle, players, state, replyTo)
+    def onCut(ctx: ActorContext[Event], puzzle: PuzzleBoard, players: Set[ActorRef[Event]], state: PlayerState, replyTo: Option[ActorRef[Event]]): Behavior[Event] = {
+      val cut: Behavior[Event] = Behaviors.receiveMessage {
+        case ActorsUpdated(p) =>
+          state.enqueue(ActorsUpdated(p))
+          onCut(ctx, puzzle, players, state, replyTo)
+        case GameStateRequest(from) =>
+          if (state.notClosed(from)) state.enqueue(GameStateRequest(from))
+          onCut(ctx, puzzle, players, state, replyTo)
+        case SnapshotRequest(from) =>
+          state.closeChannel(from)
+          if (state.allClosed) ctx.self ! CutCompleted(replyTo)
+          onCut(ctx, puzzle, players, state, replyTo)
+        case event: GameEvent =>
+          if (state.notClosed(event.from)) state.enqueue(event)
+          onCut(ctx, puzzle, players, state, replyTo)
+        case CutCompleted(replyTo) =>
+          if (replyTo.nonEmpty) replyTo.get ! GameState(puzzle.state())
+          running(ctx, puzzle, players)
+        case _ => onCut(ctx, puzzle, players, state, replyTo)
+      }
+      Behaviors.supervise(cut).onFailure(SupervisorStrategy.restart)
     }
   }
 

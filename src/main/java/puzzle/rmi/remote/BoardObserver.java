@@ -11,4 +11,6 @@ public interface BoardObserver extends Remote, Serializable {
 
     void update(List<SerializableTile> tiles) throws RemoteException;
 
+    void check() throws RemoteException;
+
 }
