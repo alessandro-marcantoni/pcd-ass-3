@@ -20,8 +20,8 @@ public class BoardObserverImpl implements BoardObserver {
     }
 
     @Override
-    public void check() throws RemoteException {
-        this.gameManager.getId();
+    public int check() throws RemoteException {
+        return this.gameManager.getId();
     }
 
 }

@@ -97,10 +97,11 @@ public class RemoteBoardImpl implements RemoteBoard {
     }
 
     private void checkFailureObservers() {
+        int id;
         final List<BoardObserver> toRemove = new ArrayList<>();
         for (BoardObserver observer : this.observers) {
             try {
-                observer.check();
+                id = observer.check();
             } catch (RemoteException e) {
                 toRemove.add(observer);
             }
